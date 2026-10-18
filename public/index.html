@@ -45,7 +45,6 @@
   #summary th,#summary td{border:1px solid var(--border);padding:.45rem .65rem;text-align:left;vertical-align:top}
   #summary th{background:var(--code)}
   details summary{cursor:pointer;font-weight:600}
-  #transcript{white-space:pre-wrap;background:var(--code);padding:1rem;border-radius:10px;max-height:380px;overflow:auto;margin:.8rem 0 0;font-size:.92rem}
   footer{text-align:center;color:var(--muted);font-size:.85rem;padding-bottom:2rem}
   @media (max-width:520px){.row{flex-direction:column}}
 </style>
@@ -70,13 +69,6 @@
     <div id="summary"></div>
   </section>
 
-  <section id="tcard" class="card hidden">
-    <details>
-      <summary>Original transcript</summary>
-      <div class="head" style="margin-top:.6rem"><span></span><button class="ghost" id="copyTranscript">Copy</button></div>
-      <pre id="transcript"></pre>
-    </details>
-  </section>
 </main>
 <footer>Long transcripts can take several minutes — please keep this tab open.</footer>
 <script>
@@ -128,7 +120,7 @@ function setStatus(msg, err) {
 
 async function run() {
   if (!$('ptext').value.trim()) return setStatus('Please paste a transcript.', true);
-  $('go').disabled = true; $('result').classList.add('hidden'); $('tcard').classList.add('hidden');
+  $('go').disabled = true; $('result').classList.add('hidden');
   const what = 'Writing notes';
   const t0 = Date.now(), label = setStatus(`${what}… 0s`);
   timer = setInterval(() => label.textContent = `${what}… ${Math.round((Date.now()-t0)/1000)}s`, 1000);
@@ -139,8 +131,7 @@ async function run() {
     if (!r.ok) { throw new Error(d.blocked ? 'YouTube is blocking the server\u2019s IP, so the transcript could not be fetched automatically.' : (d.error || r.statusText)); }
     raw = d;
     $('summary').innerHTML = md(d.summary);
-    $('transcript').textContent = d.transcript;
-    $('result').classList.remove('hidden'); $('tcard').classList.remove('hidden');
+    $('result').classList.remove('hidden');
     setStatus('');
     $('result').scrollIntoView({behavior:'smooth', block:'start'});
   } catch (e) { setStatus(e.message, true); }
@@ -152,7 +143,6 @@ function copy(btn, text) {
 }
 $('go').onclick = run;
 $('copySummary').onclick = e => copy(e.target, raw.summary);
-$('copyTranscript').onclick = e => copy(e.target, raw.transcript);
 </script>
 </body>
 </html>
