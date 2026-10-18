@@ -96,7 +96,7 @@ Timestamps: Include timestamps for important sections if available.
 Final Summary: Most important points to remember.
 
 Keep the notes clear, structured, informative, and easy to review. Remove filler and repetition, but preserve important details. Do not invent facts or add information not present in the transcript.
-Write the notes in English. The transcript is in Telugu.
+Write the notes in English. The transcript may be in Telugu or any other language; translate it as needed.
 
 YouTube Transcript: {transcript}"""
 
@@ -105,7 +105,7 @@ COMBINE_PROMPT = """Below are notes generated from consecutive parts of one YouT
 {parts}"""
 
 
-EXTRACT_PROMPT = """Part of a Telugu YouTube video transcript with [mm:ss] timestamps. Extract every important point, concept, definition, example, fact, number and piece of advice in English as compact bullets. Keep the [mm:ss] timestamp beside each point. No filler, do not invent facts.
+EXTRACT_PROMPT = """Part of a YouTube video transcript (possibly Telugu or another language) with [mm:ss] timestamps. Extract every important point, concept, definition, example, fact, number and piece of advice in English as compact bullets. Keep the [mm:ss] timestamp beside each point. No filler, do not invent facts.
 
 {transcript}"""
 

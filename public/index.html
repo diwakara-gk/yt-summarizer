@@ -47,19 +47,17 @@
 <body>
 <header>
   <h1>▶ YouTube Transcript Summarizer</h1>
-  <p>Paste a video link and get structured, English study notes.</p>
+  <p>Paste a transcript in any language and get structured English notes.</p>
 </header>
 <main>
   <section class="card">
-    <div class="row">
-      <input id="url" type="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off" autofocus>
+    <label for="ptext" style="display:block;font-weight:600;margin-bottom:.4rem">Paste transcript</label>
+    <textarea id="ptext" rows="9" placeholder="On YouTube: …more → Show transcript → select all → copy → paste here. Any language; notes come back in English."></textarea>
+    <div class="row" style="margin-top:.8rem">
+      <input id="url" type="url" placeholder="Video URL (optional, only used if no transcript is pasted)" autocomplete="off">
       <button id="go">Summarize</button>
     </div>
     <div id="status" role="status" aria-live="polite"></div>
-    <div id="paste" class="hidden" style="margin-top:.8rem">
-      <p style="margin:.2rem 0;color:var(--muted);font-size:.9rem">YouTube blocked the server. Open the video → <b>…more → Show transcript</b>, copy it, paste below, then click Summarize.</p>
-      <textarea id="ptext" rows="6" placeholder="Paste transcript here (optional fallback)"></textarea>
-    </div>
   </section>
 
   <section id="result" class="card hidden">
@@ -75,7 +73,7 @@
     </details>
   </section>
 </main>
-<footer>Long videos can take 1–2 minutes — please keep this tab open.</footer>
+<footer>Long transcripts can take 1–2 minutes — please keep this tab open.</footer>
 <script>
 const $ = id => document.getElementById(id);
 let raw = {summary: '', transcript: ''};
@@ -125,7 +123,7 @@ function setStatus(msg, err) {
 
 async function run() {
   const url = $('url').value.trim();
-  if (!url && !$('ptext').value.trim()) return setStatus('Please paste a YouTube link.', true);
+  if (!url && !$('ptext').value.trim()) return setStatus('Please paste a transcript.', true);
   $('go').disabled = true; $('result').classList.add('hidden'); $('tcard').classList.add('hidden');
   const t0 = Date.now(), label = setStatus('Fetching transcript and writing notes… 0s');
   timer = setInterval(() => label.textContent = `Fetching transcript and writing notes… ${Math.round((Date.now()-t0)/1000)}s`, 1000);
