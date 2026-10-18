@@ -15,6 +15,7 @@
   .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1.25rem;box-shadow:0 1px 3px rgba(0,0,0,.05)}
   .row{display:flex;gap:.6rem}
   input{flex:1;min-width:0;padding:.8rem 1rem;font-size:1rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text)}
+  textarea{width:100%;padding:.8rem 1rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;resize:vertical}
   input:focus{outline:2px solid var(--accent);border-color:transparent}
   button{padding:.8rem 1.3rem;font-size:1rem;font-weight:600;border:0;border-radius:10px;background:var(--accent);color:#0f1117;cursor:pointer;transition:background .15s}
   button:hover:not(:disabled){background:var(--accent-h)}
@@ -55,6 +56,10 @@
       <button id="go">Summarize</button>
     </div>
     <div id="status" role="status" aria-live="polite"></div>
+    <div id="paste" class="hidden" style="margin-top:.8rem">
+      <p style="margin:.2rem 0;color:var(--muted);font-size:.9rem">YouTube blocked the server. Open the video → <b>…more → Show transcript</b>, copy it, paste below, then click Summarize.</p>
+      <textarea id="ptext" rows="6" placeholder="Paste transcript here (optional fallback)"></textarea>
+    </div>
   </section>
 
   <section id="result" class="card hidden">
@@ -120,15 +125,15 @@ function setStatus(msg, err) {
 
 async function run() {
   const url = $('url').value.trim();
-  if (!url) return setStatus('Please paste a YouTube link.', true);
+  if (!url && !$('ptext').value.trim()) return setStatus('Please paste a YouTube link.', true);
   $('go').disabled = true; $('result').classList.add('hidden'); $('tcard').classList.add('hidden');
   const t0 = Date.now(), label = setStatus('Fetching transcript and writing notes… 0s');
   timer = setInterval(() => label.textContent = `Fetching transcript and writing notes… ${Math.round((Date.now()-t0)/1000)}s`, 1000);
   try {
-    const r = await fetch('/api/summarize', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({url})});
+    const r = await fetch('/api/summarize', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({url, transcript: $('ptext').value.trim()})});
     const text = await r.text(); let d;
     try { d = JSON.parse(text); } catch { throw new Error(r.status === 504 ? 'The request timed out. Try again or use a shorter video.' : `Server error (${r.status})`); }
-    if (!r.ok) throw new Error(d.error || r.statusText);
+    if (!r.ok) { if (d.blocked) $('paste').classList.remove('hidden'); throw new Error(d.blocked ? 'YouTube is blocking the server\u2019s IP, so the transcript could not be fetched automatically.' : (d.error || r.statusText)); }
     raw = d;
     $('summary').innerHTML = md(d.summary);
     $('transcript').textContent = d.transcript;

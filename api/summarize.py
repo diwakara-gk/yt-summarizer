@@ -32,7 +32,13 @@ def extract_video_id(youtube_url):
 
 def get_transcript(video_id):
     """Return (plain_text, timestamped_text)."""
-    transcript_list = YouTubeTranscriptApi().list(video_id)
+    proxy = os.environ.get('PROXY_URL')
+    if proxy:
+        from youtube_transcript_api.proxies import GenericProxyConfig
+        api = YouTubeTranscriptApi(proxy_config=GenericProxyConfig(http_url=proxy, https_url=proxy))
+    else:
+        api = YouTubeTranscriptApi()
+    transcript_list = api.list(video_id)
     try:
         srt = transcript_list.find_transcript(['te'])
     except Exception:
@@ -126,16 +132,21 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             n = int(self.headers.get('Content-Length', 0))
-            url = json.loads(self.rfile.read(n) or b'{}').get('url', '')
+            body = json.loads(self.rfile.read(n) or b'{}')
+            url = body.get('url', '')
         except Exception:
             return self._send(400, {'error': 'Invalid JSON body'})
-        vid = extract_video_id(url)
-        if not vid:
-            return self._send(400, {'error': 'Invalid YouTube URL'})
-        try:
-            transcript, timed = get_transcript(vid)
-        except Exception as e:
-            return self._send(502, {'error': f'Transcript error: {e}'})
+        pasted = (body.get('transcript') or '').strip()
+        if pasted:
+            transcript = timed = pasted
+        else:
+            vid = extract_video_id(url)
+            if not vid:
+                return self._send(400, {'error': 'Invalid YouTube URL'})
+            try:
+                transcript, timed = get_transcript(vid)
+            except Exception as e:
+                return self._send(502, {'error': f'Transcript error: {e}', 'blocked': True})
         try:
             return self._send(200, {'summary': summarize(timed), 'transcript': transcript})
         except Exception as e:
