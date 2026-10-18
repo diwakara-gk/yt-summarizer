@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>YouTube Transcript Summarizer</title>
+<style>
+  :root{color-scheme:dark;--bg:#0f1117;--card:#181b24;--text:#e6e8ee;--muted:#9aa1b2;--border:#2a2f3c;--accent:#818cf8;--accent-h:#a5b4fc;--code:#232734;--err:#fca5a5;--errbg:#2a1517}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  header{padding:2.5rem 1rem 1rem;text-align:center}
+  header h1{margin:0 0 .3rem;font-size:1.9rem;letter-spacing:-.02em}
+  header p{margin:0;color:var(--muted)}
+  main{max-width:820px;margin:0 auto;padding:1rem 1rem 4rem}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1.25rem;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .row{display:flex;gap:.6rem}
+  input{flex:1;min-width:0;padding:.8rem 1rem;font-size:1rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text)}
+  input:focus{outline:2px solid var(--accent);border-color:transparent}
+  button{padding:.8rem 1.3rem;font-size:1rem;font-weight:600;border:0;border-radius:10px;background:var(--accent);color:#0f1117;cursor:pointer;transition:background .15s}
+  button:hover:not(:disabled){background:var(--accent-h)}
+  button:disabled{opacity:.6;cursor:not-allowed}
+  button.ghost{background:transparent;color:var(--accent);border:1px solid var(--border);padding:.35rem .8rem;font-size:.85rem}
+  #status{margin:.9rem 0 0;color:var(--muted);display:flex;align-items:center;gap:.6rem;min-height:1.5rem}
+  #status.err{color:var(--err);background:var(--errbg);padding:.6rem .8rem;border-radius:8px}
+  .spin{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:s .8s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+  .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem}
+  .head h2{margin:0;font-size:1.15rem}
+  .hidden{display:none}
+  #summary h1,#summary h2,#summary h3,#summary h4{margin:1.3rem 0 .4rem;line-height:1.3}
+  #summary h2{font-size:1.25rem;border-bottom:1px solid var(--border);padding-bottom:.3rem}
+  #summary h3{font-size:1.05rem}
+  #summary ul,#summary ol{padding-left:1.4rem;margin:.4rem 0}
+  #summary p{margin:.5rem 0}
+  #summary hr{border:0;border-top:1px solid var(--border);margin:1rem 0}
+  #summary code{background:var(--code);padding:.1rem .35rem;border-radius:4px;font-size:.9em}
+  #summary table{border-collapse:collapse;width:100%;margin:.7rem 0;font-size:.92rem;display:block;overflow-x:auto}
+  #summary th,#summary td{border:1px solid var(--border);padding:.45rem .65rem;text-align:left;vertical-align:top}
+  #summary th{background:var(--code)}
+  details summary{cursor:pointer;font-weight:600}
+  #transcript{white-space:pre-wrap;background:var(--code);padding:1rem;border-radius:10px;max-height:380px;overflow:auto;margin:.8rem 0 0;font-size:.92rem}
+  footer{text-align:center;color:var(--muted);font-size:.85rem;padding-bottom:2rem}
+  @media (max-width:520px){.row{flex-direction:column}}
+</style>
+</head>
+<body>
+<header>
+  <h1>▶ YouTube Transcript Summarizer</h1>
+  <p>Paste a video link and get structured, English study notes.</p>
+</header>
+<main>
+  <section class="card">
+    <div class="row">
+      <input id="url" type="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off" autofocus>
+      <button id="go">Summarize</button>
+    </div>
+    <div id="status" role="status" aria-live="polite"></div>
+  </section>
+
+  <section id="result" class="card hidden">
+    <div class="head"><h2>Notes</h2><button class="ghost" id="copySummary">Copy</button></div>
+    <div id="summary"></div>
+  </section>
+
+  <section id="tcard" class="card hidden">
+    <details>
+      <summary>Original transcript</summary>
+      <div class="head" style="margin-top:.6rem"><span></span><button class="ghost" id="copyTranscript">Copy</button></div>
+      <pre id="transcript"></pre>
+    </details>
+  </section>
+</main>
+<footer>Long videos can take 1–2 minutes — please keep this tab open.</footer>
+<script>
+const $ = id => document.getElementById(id);
+let raw = {summary: '', transcript: ''};
+
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const inline = s => esc(s)
+  .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+  .replace(/(^|[^*])\*(?!\s)(.+?)\*(?!\*)/g,'$1<em>$2</em>')
+  .replace(/`(.+?)`/g,'<code>$1</code>');
+
+// Minimal, XSS-safe markdown renderer (headings, lists, tables, bold/italic, code, hr)
+function md(src) {
+  const lines = src.replace(/\r/g,'').split('\n'); let out = '', i = 0, list = null;
+  const close = () => { if (list) { out += `</${list}>`; list = null; } };
+  const cells = l => l.trim().replace(/^\||\|$/g,'').split('|').map(c => c.trim());
+  while (i < lines.length) {
+    const l = lines[i];
+    if (/^\s*\|.*\|\s*$/.test(l) && /^\s*\|?\s*:?-{2,}/.test(lines[i+1] || '')) {
+      close();
+      out += '<table><thead><tr>' + cells(l).map(c => `<th>${inline(c)}</th>`).join('') + '</tr></thead><tbody>';
+      i += 2;
+      while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) {
+        out += '<tr>' + cells(lines[i]).map(c => `<td>${inline(c)}</td>`).join('') + '</tr>'; i++;
+      }
+      out += '</tbody></table>'; continue;
+    }
+    let m;
+    if ((m = l.match(/^(#{1,4})\s+(.*)/))) { close(); out += `<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`; }
+    else if (/^\s*([-*_])\1{2,}\s*$/.test(l)) { close(); out += '<hr>'; }
+    else if ((m = l.match(/^\s*[-*•]\s+(.*)/))) { if (list !== 'ul') { close(); out += '<ul>'; list = 'ul'; } out += `<li>${inline(m[1])}</li>`; }
+    else if ((m = l.match(/^\s*\d+[.)]\s+(.*)/))) { if (list !== 'ol') { close(); out += '<ol>'; list = 'ol'; } out += `<li>${inline(m[1])}</li>`; }
+    else if (l.trim()) { close(); out += `<p>${inline(l)}</p>`; }
+    else close();
+    i++;
+  }
+  close(); return out;
+}
+
+let timer;
+function setStatus(msg, err) {
+  const s = $('status'); s.className = err ? 'err' : '';
+  s.innerHTML = ''; if (!msg) return;
+  if (!err) { const sp = document.createElement('span'); sp.className = 'spin'; s.append(sp); }
+  const t = document.createElement('span'); t.textContent = msg; s.append(t);
+  return t;
+}
+
+async function run() {
+  const url = $('url').value.trim();
+  if (!url) return setStatus('Please paste a YouTube link.', true);
+  $('go').disabled = true; $('result').classList.add('hidden'); $('tcard').classList.add('hidden');
+  const t0 = Date.now(), label = setStatus('Fetching transcript and writing notes… 0s');
+  timer = setInterval(() => label.textContent = `Fetching transcript and writing notes… ${Math.round((Date.now()-t0)/1000)}s`, 1000);
+  try {
+    const r = await fetch('/api/summarize', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({url})});
+    const text = await r.text(); let d;
+    try { d = JSON.parse(text); } catch { throw new Error(r.status === 504 ? 'The request timed out. Try again or use a shorter video.' : `Server error (${r.status})`); }
+    if (!r.ok) throw new Error(d.error || r.statusText);
+    raw = d;
+    $('summary').innerHTML = md(d.summary);
+    $('transcript').textContent = d.transcript;
+    $('result').classList.remove('hidden'); $('tcard').classList.remove('hidden');
+    setStatus('');
+    $('result').scrollIntoView({behavior:'smooth', block:'start'});
+  } catch (e) { setStatus(e.message, true); }
+  finally { clearInterval(timer); $('go').disabled = false; }
+}
+
+function copy(btn, text) {
+  navigator.clipboard.writeText(text).then(() => { const o = btn.textContent; btn.textContent = 'Copied ✓'; setTimeout(() => btn.textContent = o, 1500); });
+}
+$('go').onclick = run;
+$('url').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+$('copySummary').onclick = e => copy(e.target, raw.summary);
+$('copyTranscript').onclick = e => copy(e.target, raw.transcript);
+</script>
+</body>
+</html>
