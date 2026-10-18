@@ -60,7 +60,6 @@
     <label for="ptext" style="display:block;font-weight:600;margin-bottom:.4rem">Paste transcript</label>
     <textarea id="ptext" rows="9" placeholder="On YouTube: …more → Show transcript → select all → copy → paste here. Any language; notes come back in English."></textarea>
     <div class="row" style="margin-top:.8rem">
-      <input id="url" type="url" placeholder="Video URL (optional, only used if no transcript is pasted)" autocomplete="off">
       <button id="go">Summarize</button>
     </div>
     <div id="status" role="status" aria-live="polite"></div>
@@ -128,14 +127,13 @@ function setStatus(msg, err) {
 }
 
 async function run() {
-  const url = $('url').value.trim();
-  if (!url && !$('ptext').value.trim()) return setStatus('Please paste a transcript.', true);
+  if (!$('ptext').value.trim()) return setStatus('Please paste a transcript.', true);
   $('go').disabled = true; $('result').classList.add('hidden'); $('tcard').classList.add('hidden');
-  const what = $('ptext').value.trim() ? 'Writing notes' : 'Fetching transcript and writing notes';
+  const what = 'Writing notes';
   const t0 = Date.now(), label = setStatus(`${what}… 0s`);
   timer = setInterval(() => label.textContent = `${what}… ${Math.round((Date.now()-t0)/1000)}s`, 1000);
   try {
-    const r = await fetch('/api/summarize', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({url, transcript: $('ptext').value.trim()})});
+    const r = await fetch('/api/summarize', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({transcript: $('ptext').value.trim()})});
     const text = await r.text(); let d;
     try { d = JSON.parse(text); } catch { throw new Error(r.status === 504 ? 'The request timed out. Try again or use a shorter video.' : `Server error (${r.status})`); }
     if (!r.ok) { throw new Error(d.blocked ? 'YouTube is blocking the server\u2019s IP, so the transcript could not be fetched automatically.' : (d.error || r.statusText)); }
@@ -153,7 +151,6 @@ function copy(btn, text) {
   navigator.clipboard.writeText(text).then(() => { const o = btn.textContent; btn.textContent = 'Copied ✓'; setTimeout(() => btn.textContent = o, 1500); });
 }
 $('go').onclick = run;
-$('url').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
 $('copySummary').onclick = e => copy(e.target, raw.summary);
 $('copyTranscript').onclick = e => copy(e.target, raw.transcript);
 </script>
