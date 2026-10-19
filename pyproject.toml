@@ -2,7 +2,7 @@
 name = "yt-summarizer"
 version = "0.1.0"
 requires-python = ">=3.9"
-dependencies = ["youtube-transcript-api==1.2.4"]
+dependencies = []
 
 [tool.vercel]
 entrypoint = "api.summarize:handler"
