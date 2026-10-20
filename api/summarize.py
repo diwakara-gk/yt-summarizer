@@ -15,28 +15,153 @@ CHUNK_CHARS = int(os.environ.get('CHUNK_CHARS', '120000'))
 DEADLINE_S = 270
 MAX_ATTEMPTS = 6
 
-NOTES_PROMPT = """Analyze the YouTube transcript below and generate NoteGPT-style notes.
 
-Use exactly these markdown sections, each as a '## ' heading starting with an emoji:
-## 📋 Overview: Brief summary of the video.
-## 💡 Key Takeaways: Main ideas and lessons.
-## 📝 Detailed Notes: Organized '###' subheadings (each with a fitting emoji), short bullet points, and clear explanations.
-## 🔑 Key Concepts: Important terms and definitions, with **bold** terms.
-## 📌 Examples: Relevant examples, facts, and case studies from the transcript.
-## ⚡ Actionable Insights: Practical steps and advice.
-## ⏱ Timestamps: Important sections with [mm:ss] if available.
-## 🏁 Final Summary: Most important points to remember.
+NOTES_PROMPT = """You are an exceptional teacher and expert learning-note writer.
 
-Readability: short bullets (one idea each), **bold** key terms and numbers, a few relevant emojis on bullets, blank lines between sections. No walls of text.
+Your job is to turn the YouTube transcript below into clear, engaging,
+high-value study notes that help the reader UNDERSTAND the video,
+not merely reread what the speaker said.
 
-Keep the notes clear, structured, informative, and easy to review. Remove filler and repetition, but preserve important details. Do not invent facts or add information not present in the transcript.
-Write the notes in English. The transcript may be in any other language; translate it as needed.
+CORE PRINCIPLE:
+Explain every important idea well, in the right place, exactly once.
+Prefer clarity and understanding over completeness and length.
 
-YouTube Transcript: {transcript}"""
+WRITING RULES:
+- Write in natural, simple, precise English. Translate other languages into English.
+- Explain concepts as a great teacher would: what it means, how it works,
+  why it matters, and how it connects to other ideas.
+- Follow the video's logical flow, reorganizing only when it improves understanding.
+- Remove filler, repetition, unnecessary storytelling, and redundant explanations.
+- Never repeat an explanation across sections.
+- Do not turn every sentence into a bullet. Group related ideas together.
+- Use short paragraphs and concise bullets with enough explanation to be useful.
+- Bold only genuinely important terms, conclusions, and numbers.
+- Use emojis sparingly and only when they improve navigation.
+- Use tables ONLY when they make comparisons, categories, processes,
+  numbers, or alternatives easier to understand.
+- Do not force information into tables when bullets or prose are clearer.
+- Do not add generic advice, unrelated background knowledge, or invented details.
+- Preserve important qualifications, limitations, disagreements, and nuances.
+- If the transcript does not provide enough information, say so rather than guess.
+- Aim for the shortest notes that preserve the video's essential understanding.
+  Video length alone is not a reason to make notes excessively long.
 
-EXTRACT_PROMPT = """Part of a YouTube video transcript (possibly another language). Extract every important point, concept, definition, example, fact, number and piece of advice in English as compact bullets. No filler, do not invent facts.
+OUTPUT FORMAT:
 
+## 📋 At a Glance
+In 2–4 sentences, explain what the video is about, its central message,
+and what the reader will understand after reading the notes.
+Do not preview every individual point.
+
+## 🧠 The Explanation
+This is the MAIN section and should contain most of the useful content.
+
+Organize the explanation into meaningful ### subheadings with a relevant emoji.
+Follow the video's natural progression or a clearer teaching sequence.
+
+For each major idea:
+- Explain the idea in plain English.
+- Explain how or why it works when the transcript provides that information.
+- Connect cause and effect, reasoning, or related concepts where relevant.
+- Include essential supporting facts, evidence, numbers, and caveats.
+- Use a brief example when it genuinely improves understanding.
+
+Explain each idea fully in one place. Do not create separate paragraphs
+that repeat the same point in different words.
+
+Include minor details only when they are necessary to understand a major idea.
+Combine closely related points rather than creating too many subheadings.
+
+## 🔑 Essential Concepts
+List only the important technical terms, frameworks, or unfamiliar concepts
+needed to understand the video.
+
+Format: **Term** — short, plain-English definition.
+
+Do not repeat explanations already provided in The Explanation.
+If there are no meaningful technical terms, omit this section.
+
+## 📊 Comparisons & Reference Tables
+Include a compact Markdown table ONLY if the transcript contains useful
+comparisons, categories, stages, pros and cons, options, or numerical data
+that are easier to scan in tabular form.
+
+Choose relevant column headings and preserve important distinctions.
+Do not duplicate the detailed explanation in the table.
+If no table would genuinely help, omit this section.
+
+## 🎯 Practical Application
+Include actionable steps, techniques, or recommendations explicitly supported
+by the video, when applicable.
+
+Make each step concrete and explain its purpose briefly.
+For procedural content, use a numbered sequence.
+For general advice, use a short bullet list.
+Do not manufacture action items for videos that are purely explanatory.
+
+## ⏱ Important Timestamps
+Include only timestamps that are actually present or reliably identifiable
+in the supplied transcript.
+
+Use [mm:ss] for shorter videos and [hh:mm:ss] for longer videos.
+Add a short label describing the topic at each timestamp.
+Never invent or estimate timestamps. Omit this section if timestamps are unavailable.
+
+## 🏁 Remember This
+Finish with 3–5 short bullets containing the most important conclusions
+the reader should retain after reading the notes.
+
+These bullets must be a compact memory aid, not another summary.
+Do not repeat entire explanations, examples, tables, or lists of takeaways.
+
+FINAL QUALITY CHECK BEFORE RESPONDING:
+1. Is each idea explained in only one main location?
+2. Does each paragraph add new information?
+3. Have redundant takeaways and repeated conclusions been removed?
+4. Can long bullet lists be combined into clearer groups?
+5. Are the tables genuinely useful rather than decorative?
+6. Is the result substantially easier to read than a transcript?
+7. Have all claims remained faithful to the transcript?
+
+If a sentence adds no new understanding, remove it.
+If a section has no useful content, omit it.
+Return only the finished Markdown notes.
+
+YouTube Transcript:
 {transcript}"""
+
+
+
+EXTRACT_PROMPT = """You are extracting useful information from one segment
+of a YouTube transcript to help create a single, coherent set of study notes.
+
+Extract the information that is necessary to understand the video's main ideas.
+
+RULES:
+- Write in concise, natural English, translating if necessary.
+- Preserve important explanations, reasoning, facts, numbers, definitions,
+  examples, caveats, and practical advice.
+- Prefer a clear explanation of an idea over several repetitive bullet points.
+- Combine related statements into one meaningful bullet.
+- Preserve cause-and-effect relationships and the speaker's reasoning.
+- Retain distinctive examples or evidence when they add understanding.
+- Preserve timestamps exactly when they are available.
+- Avoid generic introductions, conclusions, filler, and repeated claims.
+- Do not invent missing context, facts, timestamps, or explanations.
+- Do not force every sentence into a separate bullet.
+- Keep the extraction compact; prioritize substance over volume.
+- This is an intermediate extraction, NOT the final notes.
+  Do not create a multi-section summary or repeat the same takeaway
+  in different forms.
+- If an idea is incomplete because the transcript segment ends,
+  preserve what is known without guessing how it concludes.
+
+Return organized bullets grouped by topic when appropriate.
+Include only information that adds meaningful value.
+
+Transcript segment:
+{transcript}"""
+
 
 
 def _parse_retry_after(header_val, default=5.0):
