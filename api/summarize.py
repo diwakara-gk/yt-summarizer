@@ -267,6 +267,13 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def do_GET(self):
+        # This endpoint is POST-only. Without this, a stray GET (e.g. someone
+        # pasting the URL into a browser address bar) falls through to
+        # Python's default 501 HTML error page instead of JSON, which then
+        # breaks the frontend's JSON.parse() with a confusing error.
+        self._send(405, {'error': 'This endpoint only accepts POST requests. Use the YouTube Summarizer page instead.'})
+
     def do_POST(self):
         try:
             content_len = int(self.headers.get('Content-Length', 0))
