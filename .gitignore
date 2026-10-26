@@ -1,7 +1,6 @@
 .env*
 .vercel
-__pycache__/
-venv/
+node_modules/
 .wibey/
 .vscode/
 .DS_Store
