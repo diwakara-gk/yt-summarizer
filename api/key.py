@@ -1,9 +1,44 @@
 import json
+from http import cookies
 from http.server import BaseHTTPRequestHandler
+from urllib.parse import quote, unquote
 
-from _cookie_utils import build_set_cookie_header, read_token_cookie
-
+# Inlined rather than imported from a shared helper module: Vercel's Python
+# runtime bundles each api/*.py file as an isolated function, and relying
+# on it to also pick up a sibling module turned out to crash in production
+# (FUNCTION_INVOCATION_FAILED). A few duplicated lines here beat a broken
+# deploy -- see api/summarize.py for the matching copy of this logic.
+COOKIE_NAME = 'gemini_key'
+TOKEN_TTL_SECONDS = 16 * 60 * 60  # key stays saved for 16 hours
 MAX_KEY_LEN = 512
+
+
+def read_token_cookie(headers) -> str:
+    raw = headers.get('Cookie')
+    if not raw:
+        return ''
+    jar = cookies.SimpleCookie()
+    try:
+        jar.load(raw)
+    except Exception:
+        return ''
+    morsel = jar.get(COOKIE_NAME)
+    if not morsel:
+        return ''
+    try:
+        return unquote(morsel.value)
+    except Exception:
+        return ''
+
+
+def build_set_cookie_header(token: str = '', clear: bool = False, max_age_seconds: int = TOKEN_TTL_SECONDS) -> str:
+    value = quote(token, safe='') if token else ''
+    attrs = [f'{COOKIE_NAME}={value}', 'Path=/', 'HttpOnly', 'Secure', 'SameSite=Strict']
+    if clear:
+        attrs.append('Max-Age=0')
+    elif max_age_seconds is not None:
+        attrs.append(f'Max-Age={max_age_seconds}')
+    return '; '.join(attrs)
 
 
 class handler(BaseHTTPRequestHandler):

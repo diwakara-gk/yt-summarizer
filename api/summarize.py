@@ -4,9 +4,34 @@ import socket
 import time
 import urllib.error
 import urllib.request
+from http import cookies
 from http.server import BaseHTTPRequestHandler
+from urllib.parse import unquote
 
-from _cookie_utils import read_token_cookie
+# Inlined rather than imported from a shared helper module: Vercel's Python
+# runtime bundles each api/*.py file as an isolated function, and relying
+# on it to also pick up a sibling module turned out to crash in production
+# (FUNCTION_INVOCATION_FAILED). A few duplicated lines here beat a broken
+# deploy -- see api/key.py for the matching copy of this logic.
+COOKIE_NAME = 'gemini_key'
+
+
+def read_token_cookie(headers) -> str:
+    raw = headers.get('Cookie')
+    if not raw:
+        return ''
+    jar = cookies.SimpleCookie()
+    try:
+        jar.load(raw)
+    except Exception:
+        return ''
+    morsel = jar.get(COOKIE_NAME)
+    if not morsel:
+        return ''
+    try:
+        return unquote(morsel.value)
+    except Exception:
+        return ''
 
 LLM_URL = os.environ.get(
     'LLM_URL',
