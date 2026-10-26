@@ -1,4 +1,5 @@
 import json
+import time
 from http import cookies
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import quote, unquote
@@ -11,6 +12,12 @@ from urllib.parse import quote, unquote
 COOKIE_NAME = 'gemini_key'
 TOKEN_TTL_SECONDS = 16 * 60 * 60  # key stays saved for 16 hours
 MAX_KEY_LEN = 512
+
+# A second, non-secret cookie that just holds the expiry timestamp (epoch
+# seconds). It is NOT HttpOnly on purpose: it carries zero information about
+# the actual key, so it's safe for page JS to read directly and render a
+# "time remaining" countdown without needing a round trip to the server.
+EXPIRY_COOKIE_NAME = 'gemini_key_expires'
 
 
 def read_token_cookie(headers) -> str:
@@ -31,9 +38,11 @@ def read_token_cookie(headers) -> str:
         return ''
 
 
-def build_set_cookie_header(token: str = '', clear: bool = False, max_age_seconds: int = TOKEN_TTL_SECONDS) -> str:
-    value = quote(token, safe='') if token else ''
-    attrs = [f'{COOKIE_NAME}={value}', 'Path=/', 'HttpOnly', 'Secure', 'SameSite=Strict']
+def build_cookie_header(name: str, value: str = '', clear: bool = False,
+                         max_age_seconds: int = None, http_only: bool = True) -> str:
+    attrs = [f'{name}={value}', 'Path=/', 'Secure', 'SameSite=Strict']
+    if http_only:
+        attrs.append('HttpOnly')
     if clear:
         attrs.append('Max-Age=0')
     elif max_age_seconds is not None:
@@ -42,14 +51,14 @@ def build_set_cookie_header(token: str = '', clear: bool = False, max_age_second
 
 
 class handler(BaseHTTPRequestHandler):
-    def _send(self, code: int, obj: dict, set_cookie: str = None):
+    def _send(self, code: int, obj: dict, set_cookies=None):
         body = json.dumps(obj).encode('utf-8')
         self.send_response(code)
         self.send_header('Content-Type', 'application/json; charset=utf-8')
         self.send_header('Content-Length', str(len(body)))
         self.send_header('Cache-Control', 'no-store')
-        if set_cookie:
-            self.send_header('Set-Cookie', set_cookie)
+        for cookie_header in (set_cookies or []):
+            self.send_header('Set-Cookie', cookie_header)
         self.end_headers()
         self.wfile.write(body)
 
@@ -74,7 +83,14 @@ class handler(BaseHTTPRequestHandler):
         if len(token) > MAX_KEY_LEN:
             return self._send(400, {'error': 'That key looks too long to be valid'})
 
-        self._send(200, {'ok': True}, set_cookie=build_set_cookie_header(token))
+        expires_at = int(time.time()) + TOKEN_TTL_SECONDS
+        self._send(200, {'ok': True, 'expiresAt': expires_at}, set_cookies=[
+            build_cookie_header(COOKIE_NAME, quote(token, safe=''), max_age_seconds=TOKEN_TTL_SECONDS, http_only=True),
+            build_cookie_header(EXPIRY_COOKIE_NAME, str(expires_at), max_age_seconds=TOKEN_TTL_SECONDS, http_only=False),
+        ])
 
     def do_DELETE(self):
-        self._send(200, {'ok': True}, set_cookie=build_set_cookie_header(clear=True))
+        self._send(200, {'ok': True}, set_cookies=[
+            build_cookie_header(COOKIE_NAME, clear=True, http_only=True),
+            build_cookie_header(EXPIRY_COOKIE_NAME, clear=True, http_only=False),
+        ])

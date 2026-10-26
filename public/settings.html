@@ -23,6 +23,7 @@
 <main>
   <section id="keyCard" class="card">
     <div id="keyBanner" class="key-banner hidden" role="status"></div>
+    <div id="keyExpiry" class="key-expiry hidden" role="status" aria-live="polite"></div>
     <form id="keyForm" autocomplete="on">
       <!-- Dummy username field: tricks the browser's password manager into treating
            the lone API-key field below as a saveable/autofillable credential. -->
@@ -63,9 +64,43 @@ function renderBanner(hasKey) {
   }
 }
 
+// The real key cookie is HttpOnly (unreadable by JS on purpose). This reads
+// the companion non-secret expiry cookie that /api/key sets alongside it,
+// so we can show a countdown without ever touching the key itself.
+function readExpiryCookie() {
+  const match = document.cookie.match(/(?:^|;\s*)gemini_key_expires=([^;]+)/);
+  if (!match) return null;
+  const epochSeconds = parseInt(decodeURIComponent(match[1]), 10);
+  return Number.isFinite(epochSeconds) ? epochSeconds * 1000 : null;
+}
+
+function formatRemaining(ms) {
+  if (ms <= 0) return 'Expired \u2014 save your key again.';
+  const totalMinutes = Math.ceil(ms / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours <= 0) return `Expires in ${minutes}m`;
+  return `Expires in ${hours}h ${minutes}m`;
+}
+
+let countdownTimer = null;
+function updateCountdown() {
+  const el = $('keyExpiry');
+  const expiresAtMs = readExpiryCookie();
+  if (expiresAtMs === null) {
+    el.classList.add('hidden');
+    if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+    return;
+  }
+  el.classList.remove('hidden');
+  el.textContent = formatRemaining(expiresAtMs - Date.now());
+  if (!countdownTimer) countdownTimer = setInterval(updateCountdown, 30000);
+}
+
 async function refreshKeyState() {
   const hasKey = await fetchHasApiKey();
   renderBanner(hasKey === true);
+  updateCountdown();
 }
 
 async function saveKey() {
