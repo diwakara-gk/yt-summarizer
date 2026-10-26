@@ -6,6 +6,8 @@ import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler
 
+from _cookie_utils import read_token_cookie
+
 LLM_URL = os.environ.get(
     'LLM_URL',
     'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
@@ -250,12 +252,14 @@ class handler(BaseHTTPRequestHandler):
             return self._send(400, {'error': 'Malformed JSON body'})
 
         transcript = (body.get('transcript') or '').strip()
-        token = (body.get('token') or '').strip()
+        # Explicit body token wins (handy for curl/testing); otherwise fall
+        # back to the HttpOnly session cookie set via /api/key.
+        token = (body.get('token') or '').strip() or read_token_cookie(self.headers)
 
         if not transcript:
             return self._send(400, {'error': 'Transcript is required'})
         if not token:
-            return self._send(400, {'error': 'API token is required'})
+            return self._send(400, {'error': 'No API key saved. Set one on the Manage Key page first.'})
 
         try:
             result = summarize(transcript, token)

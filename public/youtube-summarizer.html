@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>&#9889; YouTube Summarizer</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='80'%3E%F0%9F%93%9D%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+</head>
+<body>
+<div class="app-shell">
+<aside id="navMount" class="sidebar" aria-label="Primary navigation"></aside>
+<div class="content-area">
+<header>
+  <div class="badge" aria-hidden="true">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2L14.5 8.5L21 11L14.5 13.5L12 20L9.5 13.5L3 11L9.5 8.5L12 2Z" fill="#0f1117"/>
+    </svg>
+  </div>
+  <h1>&#9889; YouTube Summarizer &#9889;</h1>
+  <p>Paste a transcript &mdash; get a clean, structured summary back.</p>
+  <p class="model-tag">Uses Gemini 3.5 Flash Lite</p>
+</header>
+<main>
+  <section id="inputCard" class="card">
+    <div id="keyBanner" class="key-banner hidden" role="status"></div>
+    <form id="appForm" autocomplete="on">
+      <label for="ptext">Transcript</label>
+      <textarea id="ptext" name="transcript" autocomplete="off" rows="4" placeholder="Paste the transcript here"></textarea>
+
+      <button id="go" type="submit"><span class="spinner" aria-hidden="true"></span><span id="goLabel">Summarize</span></button>
+      <div id="status" role="status" aria-live="polite"></div>
+    </form>
+  </section>
+
+  <section id="result" class="card hidden">
+    <div class="result-head">
+     <label for="summary">Your notes</label>
+     <div class="result-actions">
+       <button id="copyBtn" type="button" class="ghost-btn">Copy Markdown</button>
+       <button id="toggleRaw" type="button" class="ghost-btn">View Raw</button>
+     </div>
+   </div>
+   <div class="reading-toolbar" aria-label="Reading controls">
+     <div class="reading-controls">
+       <span class="reading-toolbar-label">Text size</span>
+       <button id="fontDown" type="button" class="control-btn" aria-label="Decrease text size">A-</button>
+       <span id="fontReadout" class="size-readout" aria-live="polite">18 px</span>
+       <button id="fontUp" type="button" class="control-btn" aria-label="Increase text size">A+</button>
+     </div>
+     <div class="reading-controls">
+       <button id="widthToggle" type="button" class="control-btn" aria-pressed="false">Wide reading</button>
+       <button id="focusToggle" type="button" class="control-btn" aria-pressed="false">Enter focus mode</button>
+     </div>
+   </div>
+   <div id="summary"></div>
+    <textarea id="raw" rows="22" readonly class="hidden"></textarea>
+  </section>
+</main>
+<footer>Your transcript stays in your browser.</footer>
+<script src="nav.js"></script>
+<script src="common.js"></script>
+<script>
+async function checkKeyState() {
+  const hasKey = await fetchHasApiKey();
+  if (hasKey === null) return; // couldn't check -- summarize will surface a clear error if there's no key
+  const b = $('keyBanner');
+  b.classList.remove('hidden', 'ok', 'warn');
+  if (hasKey) {
+    b.classList.add('ok');
+    b.innerHTML = 'API key saved. <a href="settings.html">Change key</a>';
+  } else {
+    b.classList.add('warn');
+    b.innerHTML = 'No API key saved yet. <a href="settings.html">Set one up</a> before summarizing.';
+  }
+}
+
+async function run() {
+  const transcript = $('ptext').value.trim();
+  if (!transcript) return setStatus('Please paste a transcript.', 'error');
+
+  $('go').disabled = true;
+  $('goLabel').textContent = 'Summarizing...';
+  $('result').classList.add('hidden');
+  setStatus('Summarizing...');
+
+  try {
+    const r = await fetch('/api/summarize', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({transcript})
+    });
+    const text = await r.text();
+    let d;
+    try { d = JSON.parse(text); } catch { throw new Error(r.status === 504 ? 'The request timed out. Try again or use a shorter transcript.' : `Server error (${r.status})`); }
+    if (!r.ok) throw new Error(d.error || r.statusText);
+    renderSummary(d.summary);
+    $('result').classList.remove('hidden');
+    $('result').classList.add('show');
+    setStatus('');
+  } catch (e) {
+    setStatus(e.message, 'error');
+  } finally {
+    $('go').disabled = false;
+    $('goLabel').textContent = 'Summarize';
+  }
+}
+
+function renderSummary(markdown) {
+  $('raw').value = markdown;
+  const html = marked.parse(markdown, { headerIds: false, mangle: false });
+  $('summary').innerHTML = DOMPurify.sanitize(html);
+  $('summary').classList.remove('hidden');
+  $('raw').classList.add('hidden');
+  $('toggleRaw').textContent = 'View Raw';
+}
+
+$('toggleRaw').addEventListener('click', () => {
+  const switchingToRaw = $('raw').classList.contains('hidden');
+  $('raw').classList.toggle('hidden', !switchingToRaw);
+  $('summary').classList.toggle('hidden', switchingToRaw);
+  $('toggleRaw').textContent = switchingToRaw ? 'View Rendered' : 'View Raw';
+});
+
+$('copyBtn').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText($('raw').value);
+    const old = $('copyBtn').textContent;
+    $('copyBtn').textContent = 'Copied!';
+    setTimeout(() => { $('copyBtn').textContent = old; }, 1500);
+  } catch {
+    setStatus('Could not copy to clipboard.', 'error');
+  }
+});
+
+// Reader preferences stay in this browser and are never sent to the API.
+// Defaults to wide reading mode; only narrows if the user explicitly chose
+// narrow before (an unset/missing preference must NOT override the default).
+const readerPrefs = { fontSize: 18, wide: true };
+try {
+  const saved = JSON.parse(localStorage.getItem('transcriptReaderPrefs') || '{}');
+  if (Number.isFinite(saved.fontSize)) readerPrefs.fontSize = Math.min(24, Math.max(15, saved.fontSize));
+  if (typeof saved.wide === 'boolean') readerPrefs.wide = saved.wide;
+} catch (_) {}
+function applyReaderPrefs() {
+  document.documentElement.style.setProperty('--reading-size', `${readerPrefs.fontSize}px`);
+  document.documentElement.style.setProperty('--reading-width', readerPrefs.wide ? '100%' : '760px');
+  $('fontReadout').textContent = `${readerPrefs.fontSize} px`;
+  $('widthToggle').setAttribute('aria-pressed', String(readerPrefs.wide));
+  $('widthToggle').textContent = readerPrefs.wide ? 'Narrow reading' : 'Wide reading';
+  try { localStorage.setItem('transcriptReaderPrefs', JSON.stringify(readerPrefs)); } catch (_) {}
+}
+$('fontDown').addEventListener('click', () => { readerPrefs.fontSize = Math.max(15, readerPrefs.fontSize - 1); applyReaderPrefs(); });
+$('fontUp').addEventListener('click', () => { readerPrefs.fontSize = Math.min(24, readerPrefs.fontSize + 1); applyReaderPrefs(); });
+$('widthToggle').addEventListener('click', () => { readerPrefs.wide = !readerPrefs.wide; applyReaderPrefs(); });
+$('focusToggle').addEventListener('click', () => {
+  const active = document.body.classList.toggle('focus-mode');
+  $('focusToggle').setAttribute('aria-pressed', String(active));
+  $('focusToggle').textContent = active ? 'Exit focus mode' : 'Enter focus mode';
+  if (active) $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+applyReaderPrefs();
+
+$('appForm').addEventListener('submit', e => { e.preventDefault(); run(); });
+checkKeyState();
+</script>
+</div>
+</div>
+</body>
+</html>

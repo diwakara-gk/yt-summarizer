@@ -1,295 +1,42 @@
 <!doctype html>
-
 <html lang="en">
-
 <head>
-
 <meta charset="utf-8">
-
 <meta name="viewport" content="width=device-width,initial-scale=1">
-
-<title>&#9889; YouTube Transcript Summarizer</title>
-
+<title>&#9889; Summarizer Hub</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='80'%3E%F0%9F%93%9D%3C/text%3E%3C/svg%3E">
-
-<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-
-<style>
-
-:root{color-scheme:dark;--bg:#171817;--card:#20211e;--card-soft:#1d1e1b;--surface-raised:#292a25;--text:#d4cfc4;--heading:#e8e1d3;--muted:#aaa69d;--border:#3b3c35;--accent:#c9b99a;--accent-hover:#dfcfb0;--err:#f2b8b5;--errbg:#352321;--shadow:0 12px 32px rgba(0,0,0,.16);--reading-size:18px;--reading-width:100%}
-*{box-sizing:border-box}html{scrollbar-color:#55564d var(--bg);scroll-behavior:smooth}body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font:16px/1.65 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow-x:hidden;-webkit-font-smoothing:antialiased}::selection{background:#665c49;color:#fffaf0}::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:#55564d;border-radius:8px}::-webkit-scrollbar-thumb:hover{background:#777568}
-header,main,footer{position:relative;z-index:1}header{max-width:900px;margin:0 auto;padding:2.6rem 1rem 1.25rem;text-align:center}.badge{display:inline-flex;align-items:center;justify-content:center;width:3rem;height:3rem;border-radius:14px;background:var(--surface-raised);color:var(--accent);font-size:1.5rem;margin-bottom:.9rem;border:1px solid var(--border)}.badge svg path{fill:var(--accent)}header h1{margin:0 0 .4rem;font-size:clamp(1.65rem,4vw,2.15rem);line-height:1.25;letter-spacing:-.035em;color:var(--heading)}header p{margin:.3rem 0 0;color:var(--muted);font-size:.96rem}header p.model-tag{margin-top:.75rem;display:inline-block;font-size:.78rem;font-weight:600;color:var(--accent);background:#292820;border:1px solid #514a3c;border-radius:999px;padding:.3rem .8rem}
-main{max-width:86%;width:86%;margin:0 auto;padding:.75rem 0 3.5rem}.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:clamp(1rem,3vw,1.5rem);margin-bottom:1.15rem;box-shadow:var(--shadow)}label{display:block;font-weight:650;color:var(--heading);margin-bottom:.45rem}input,textarea{width:100%;padding:.85rem 1rem;font-size:1rem;border:1px solid var(--border);border-radius:10px;background:#191a17;color:var(--text);font-family:inherit;line-height:1.6;resize:vertical;transition:border-color .15s,box-shadow .15s}input::placeholder,textarea::placeholder{color:#89867e}input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}input:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(201,185,154,.12)}button{margin-top:.9rem;padding:.72rem 1.1rem;font-size:.95rem;font-weight:650;border:1px solid transparent;border-radius:10px;background:var(--accent);color:#24231f;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:.5rem;transition:background .15s,border-color .15s,opacity .15s}button:hover:not(:disabled){background:var(--accent-hover)}button:active:not(:disabled){transform:translateY(1px)}button:disabled{opacity:.65;cursor:not-allowed}.spinner{width:.95rem;height:.95rem;border:2px solid rgba(36,35,31,.3);border-top-color:#24231f;border-radius:50%;animation:spin .7s linear infinite;display:none}button:disabled .spinner{display:inline-block}@keyframes spin{to{transform:rotate(360deg)}}#status{margin:.85rem 0 0;color:var(--muted);min-height:1.5rem}#status.err{color:var(--err);background:var(--errbg);padding:.65rem .8rem;border-radius:8px}.hidden{display:none!important}.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-#result{padding:clamp(1rem,3vw,1.5rem);border-color:var(--border)}#result.show{animation:rise .25s ease both}@keyframes rise{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}.result-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.8rem;margin-bottom:1rem;padding-bottom:.9rem;border-bottom:1px solid var(--border)}.result-head label{margin:0;font-size:1.05rem}.result-actions,.reading-controls{display:flex;align-items:center;flex-wrap:wrap;gap:.45rem}.ghost-btn,.control-btn{margin:0;padding:.48rem .75rem;font-size:.85rem;font-weight:600;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);box-shadow:none}.ghost-btn:hover:not(:disabled),.control-btn:hover:not(:disabled){border-color:#77705f;background:var(--surface-raised);color:var(--heading)}.control-btn[aria-pressed="true"]{background:var(--surface-raised);border-color:var(--accent);color:var(--accent-hover)}.reading-toolbar{display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:1.25rem;padding:.75rem;background:#1b1c19;border:1px solid var(--border);border-radius:12px}.reading-toolbar-label{color:var(--muted);font-size:.82rem;margin-right:.25rem}.size-readout{color:var(--muted);font-size:.82rem;min-width:3.5rem;text-align:center}
-#summary{max-width:var(--reading-width);margin:0 auto;font-size:var(--reading-size);line-height:1.8;overflow-wrap:anywhere;min-height:8rem;color:var(--text);font-weight:400}#summary h1,#summary h2,#summary h3,#summary h4{color:var(--heading);line-height:1.35;letter-spacing:-.018em}#summary h1{font-size:1.8em;margin:1.8em 0 .7em}#summary h2{font-size:1.35em;margin:2em 0 .75em;padding-bottom:.5em;border-bottom:1px solid var(--border)}#summary h2:first-child{margin-top:0}#summary h3{font-size:1.12em;margin:1.45em 0 .55em;color:var(--accent-hover)}#summary h4{font-size:1em;margin:1.2em 0 .4em}#summary p{margin:.85em 0}#summary ul,#summary ol{margin:.75em 0 1.05em;padding-left:1.5em}#summary li{padding-left:.15em;margin:.45em 0}#summary li::marker{color:var(--accent)}#summary li>ul,#summary li>ol{margin:.35em 0}#summary strong{color:var(--heading);font-weight:700}#summary em{color:#d9cdb6}#summary hr{border:0;border-top:1px solid var(--border);margin:1.8em 0}#summary a{color:var(--accent-hover);text-decoration-thickness:.08em;text-underline-offset:.2em}#summary blockquote{margin:1.2em 0;padding:.25em 1em;border-left:3px solid var(--accent);background:#25251f;color:#c9c3b7;border-radius:0 8px 8px 0}#summary blockquote p{margin:.5em 0}#summary code{background:#2a2b26;border:1px solid var(--border);border-radius:5px;padding:.12em .35em;font-size:.88em;overflow-wrap:anywhere}#summary pre{overflow-x:auto;padding:1rem;background:#191a17;border:1px solid var(--border);border-radius:10px;line-height:1.6}#summary pre code{padding:0;border:0;background:transparent}#summary table{width:100%;border-collapse:collapse;margin:1.2em 0;font-size:.9em;line-height:1.6}#summary th,#summary td{text-align:left;vertical-align:top;padding:.7em .8em;border:1px solid var(--border)}#summary th{background:#2a2a24;color:var(--heading);font-weight:700}#summary tr:nth-child(even) td{background:#23241f}#raw{width:100%;margin-top:.75rem;min-height:20rem}footer{text-align:center;color:var(--muted);font-size:.85rem;padding:0 1rem 2.5rem}
-body.focus-mode header,body.focus-mode #inputCard,body.focus-mode footer{display:none}body.focus-mode main{max-width:100%;width:100%;padding:1.25rem clamp(.75rem,4vw,3rem) 3rem}body.focus-mode #result{max-width:100%;margin:0 auto;box-shadow:none;border-color:transparent;background:transparent}body.focus-mode .result-head,body.focus-mode .reading-toolbar{max-width:1040px;margin-left:auto;margin-right:auto}body.focus-mode #summary{max-width:100%}
-@media(max-width:640px){header{padding-top:1.8rem}main{width:94%}.result-head{align-items:flex-start}.result-actions{width:100%}.result-actions button{flex:1}.reading-toolbar{align-items:flex-start}#summary table{font-size:.85em}body.focus-mode main{padding-left:.75rem;padding-right:.75rem}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
-
-</style>
-
+<link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-
 <header>
-
   <div class="badge" aria-hidden="true">
-
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-
       <path d="M12 2L14.5 8.5L21 11L14.5 13.5L12 20L9.5 13.5L3 11L9.5 8.5L12 2Z" fill="#0f1117"/>
-
     </svg>
-
   </div>
-
-  <h1>&#9889; YouTube Transcript Summarizer &#9889;</h1>
-
-  <p>Paste a token and a transcript — get a clean, structured summary back.</p>
-
-  <p class="model-tag">Uses Gemini 3.5 Flash Lite</p>
-
+  <h1>&#9889; Summarizer Hub &#9889;</h1>
+  <p>Pick a tool to get started.</p>
 </header>
-
 <main>
-
-  <section id="inputCard" class="card">
-
-    <form id="appForm" autocomplete="on">
-
-      <!-- Dummy username field: tricks Chrome's password manager into treating the
-
-           lone API-key field below as a saveable/autofillable credential. -->
-
-      <input type="text" name="username" value="gemini-api-key" autocomplete="username" class="visually-hidden" tabindex="-1" aria-hidden="true">
-
-
-
-      <label for="token">API token</label>
-
-      <input id="token" name="token" type="password" autocomplete="current-password" placeholder="Paste your Gemini API key">
-
-
-
-      <label for="ptext" style="margin-top:1rem">Transcript</label>
-
-      <textarea id="ptext" name="transcript" autocomplete="off" rows="4" placeholder="Paste the transcript here"></textarea>
-
-
-
-      <button id="go" type="submit"><span class="spinner" aria-hidden="true"></span><span id="goLabel">Summarize</span></button>
-
-      <div id="status" role="status" aria-live="polite"></div>
-
-    </form>
-
-  </section>
-
-
-
-  <section id="result" class="card hidden">
-
-    <div class="result-head">
-     <label for="summary">Your notes</label>
-     <div class="result-actions">
-       <button id="copyBtn" type="button" class="ghost-btn">Copy Markdown</button>
-       <button id="toggleRaw" type="button" class="ghost-btn">View Raw</button>
-     </div>
-   </div>
-   <div class="reading-toolbar" aria-label="Reading controls">
-     <div class="reading-controls">
-       <span class="reading-toolbar-label">Text size</span>
-       <button id="fontDown" type="button" class="control-btn" aria-label="Decrease text size">A−</button>
-       <span id="fontReadout" class="size-readout" aria-live="polite">18 px</span>
-       <button id="fontUp" type="button" class="control-btn" aria-label="Increase text size">A+</button>
-     </div>
-     <div class="reading-controls">
-       <button id="widthToggle" type="button" class="control-btn" aria-pressed="false">Wide reading</button>
-       <button id="focusToggle" type="button" class="control-btn" aria-pressed="false">Enter focus mode</button>
-     </div>
-   </div>
-   <div id="summary"></div>
-
-    <textarea id="raw" rows="22" readonly class="hidden"></textarea>
-
-  </section>
-
+  <div class="nav-grid">
+    <a class="nav-card" href="youtube-summarizer.html">
+      <span class="nav-icon" aria-hidden="true">&#9654;&#65039;</span>
+      <h2>YouTube Summarizer</h2>
+      <p>Paste a video transcript and get clean, structured notes.</p>
+    </a>
+    <div class="nav-card disabled" aria-disabled="true">
+      <span class="soon-badge">Coming soon</span>
+      <span class="nav-icon" aria-hidden="true">&#128221;</span>
+      <h2>Notes Summarizer</h2>
+      <p>Summarize raw notes or documents the same way. Not built yet.</p>
+    </div>
+    <a class="nav-card" href="settings.html">
+      <span class="nav-icon" aria-hidden="true">&#128273;</span>
+      <h2>Manage API Key</h2>
+      <p>Save or forget your Gemini API key, stored safely in an HttpOnly cookie.</p>
+    </a>
+  </div>
 </main>
-
-<footer>Your transcript and key stay in your browser</footer>
-
-<script>
-
-const $ = id => document.getElementById(id);
-
-
-
-function setStatus(msg, err) {
-
-  const s = $('status');
-
-  s.className = err ? 'err' : '';
-
-  s.textContent = msg || '';
-
-}
-
-
-
-async function run() {
-
-  const transcript = $('ptext').value.trim();
-
-  const token = $('token').value.trim();
-
-  if (!token) return setStatus('Please enter your API token.', true);
-
-  if (!transcript) return setStatus('Please paste a transcript.', true);
-
-
-
-  $('go').disabled = true;
-
-  $('goLabel').textContent = 'Summarizing...';
-
-  $('result').classList.add('hidden');
-
-  setStatus('Summarizing...');
-
-
-
-  try {
-
-    const r = await fetch('/api/summarize', {
-
-      method: 'POST',
-
-      headers: {'Content-Type': 'application/json'},
-
-      body: JSON.stringify({transcript, token})
-
-    });
-
-    const text = await r.text();
-
-    let d;
-
-    try { d = JSON.parse(text); } catch { throw new Error(r.status === 504 ? 'The request timed out. Try again or use a shorter transcript.' : `Server error (${r.status})`); }
-
-    if (!r.ok) throw new Error(d.error || r.statusText);
-
-    renderSummary(d.summary);
-
-    $('result').classList.remove('hidden');
-
-    $('result').classList.add('show');
-
-    setStatus('');
-
-  } catch (e) {
-
-    setStatus(e.message, true);
-
-  } finally {
-
-    $('go').disabled = false;
-
-    $('goLabel').textContent = 'Summarize';
-
-  }
-
-}
-
-
-
-function renderSummary(markdown) {
-
-  $('raw').value = markdown;
-
-  const html = marked.parse(markdown, { headerIds: false, mangle: false });
-
-  $('summary').innerHTML = DOMPurify.sanitize(html);
-
-  $('summary').classList.remove('hidden');
-
-  $('raw').classList.add('hidden');
-
-  $('toggleRaw').textContent = 'View Raw';
-
-}
-
-
-
-$('toggleRaw').addEventListener('click', () => {
-
-  const switchingToRaw = $('raw').classList.contains('hidden');
-
-  $('raw').classList.toggle('hidden', !switchingToRaw);
-
-  $('summary').classList.toggle('hidden', switchingToRaw);
-
-  $('toggleRaw').textContent = switchingToRaw ? 'View Rendered' : 'View Raw';
-
-});
-
-
-
-$('copyBtn').addEventListener('click', async () => {
-
-  try {
-
-    await navigator.clipboard.writeText($('raw').value);
-
-    const old = $('copyBtn').textContent;
-
-    $('copyBtn').textContent = 'Copied!';
-
-    setTimeout(() => { $('copyBtn').textContent = old; }, 1500);
-
-  } catch {
-
-    setStatus('Could not copy to clipboard.', true);
-
-  }
-
-});
-
-
-
-// Reader preferences stay in this browser and are never sent to the API.
-const readerPrefs = { fontSize: 18, wide: true };
-try {
-  const saved = JSON.parse(localStorage.getItem('transcriptReaderPrefs') || '{}');
-  if (Number.isFinite(saved.fontSize)) readerPrefs.fontSize = Math.min(24, Math.max(15, saved.fontSize));
-  readerPrefs.wide = saved.wide === true;
-} catch (_) {}
-function applyReaderPrefs() {
-  document.documentElement.style.setProperty('--reading-size', `${readerPrefs.fontSize}px`);
-  document.documentElement.style.setProperty('--reading-width', readerPrefs.wide ? '100%' : '760px');
-  $('fontReadout').textContent = `${readerPrefs.fontSize} px`;
-  $('widthToggle').setAttribute('aria-pressed', String(readerPrefs.wide));
-  $('widthToggle').textContent = readerPrefs.wide ? 'Narrow reading' : 'Wide reading';
-  try { localStorage.setItem('transcriptReaderPrefs', JSON.stringify(readerPrefs)); } catch (_) {}
-}
-$('fontDown').addEventListener('click', () => { readerPrefs.fontSize = Math.max(15, readerPrefs.fontSize - 1); applyReaderPrefs(); });
-$('fontUp').addEventListener('click', () => { readerPrefs.fontSize = Math.min(24, readerPrefs.fontSize + 1); applyReaderPrefs(); });
-$('widthToggle').addEventListener('click', () => { readerPrefs.wide = !readerPrefs.wide; applyReaderPrefs(); });
-$('focusToggle').addEventListener('click', () => {
-  const active = document.body.classList.toggle('focus-mode');
-  $('focusToggle').setAttribute('aria-pressed', String(active));
-  $('focusToggle').textContent = active ? 'Exit focus mode' : 'Enter focus mode';
-  if (active) $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
-});
-applyReaderPrefs();
-
-$('appForm').addEventListener('submit', e => { e.preventDefault(); run(); });
-
-</script>
-
+<footer>Your API key stays in a secure cookie &mdash; never in page JavaScript.</footer>
 </body>
-
 </html>
-
-

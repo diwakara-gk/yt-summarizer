@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>&#128273; Manage Gemini API Key</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='80'%3E%F0%9F%93%9D%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app-shell">
+<aside id="navMount" class="sidebar" aria-label="Primary navigation"></aside>
+<div class="content-area">
+<header>
+  <div class="badge" aria-hidden="true">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2L14.5 8.5L21 11L14.5 13.5L12 20L9.5 13.5L3 11L9.5 8.5L12 2Z" fill="#0f1117"/>
+    </svg>
+  </div>
+  <h1>&#128273; Manage your Gemini API key</h1>
+  <p>Saved once, used automatically every time you summarize.</p>
+</header>
+<main>
+  <section id="keyCard" class="card">
+    <div id="keyBanner" class="key-banner hidden" role="status"></div>
+    <form id="keyForm" autocomplete="on">
+      <!-- Dummy username field: tricks the browser's password manager into treating
+           the lone API-key field below as a saveable/autofillable credential. -->
+      <input type="text" name="username" value="gemini-api-key" autocomplete="username" class="visually-hidden" tabindex="-1" aria-hidden="true">
+
+      <label for="apiKey">Gemini API key</label>
+      <input id="apiKey" name="apiKey" type="password" autocomplete="current-password" placeholder="Paste your Gemini API key">
+
+      <div class="result-actions" style="margin-top:.9rem">
+        <button id="saveBtn" type="submit"><span class="spinner" aria-hidden="true"></span><span id="saveLabel">Save key</span></button>
+        <button id="clearBtn" type="button" class="ghost-btn">Clear key</button>
+      </div>
+      <div id="status" role="status" aria-live="polite"></div>
+    </form>
+    <p class="security-note">
+      Your key is stored in an <strong>HttpOnly, Secure cookie for 16 hours</strong>.
+      It's sent straight to this app's server over HTTPS and nowhere else.
+      Page JavaScript can't read it, localStorage never sees it, and because
+      browser extensions can only access cookies through <code>document.cookie</code>
+      (which HttpOnly blocks), they can't read it either. After 16 hours, or
+      if you hit "Clear key," it's gone and you'll need to save it again.
+    </p>
+  </section>
+</main>
+<footer>Keys never leave this server &mdash; not even to page JavaScript.</footer>
+<script src="nav.js"></script>
+<script src="common.js"></script>
+<script>
+function renderBanner(hasKey) {
+  const b = $('keyBanner');
+  b.classList.remove('hidden', 'ok', 'warn');
+  if (hasKey) {
+    b.classList.add('ok');
+    b.textContent = 'A key is currently saved for this browser.';
+  } else {
+    b.classList.add('warn');
+    b.textContent = 'No key saved yet. Paste one below to get started.';
+  }
+}
+
+async function refreshKeyState() {
+  const hasKey = await fetchHasApiKey();
+  renderBanner(hasKey === true);
+}
+
+async function saveKey() {
+  const token = $('apiKey').value.trim();
+  if (!token) return setStatus('Please enter a key first.', 'error');
+
+  $('saveBtn').disabled = true;
+  $('saveLabel').textContent = 'Saving...';
+  setStatus('');
+
+  try {
+    const r = await fetch('/api/key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Could not save the key.');
+    $('apiKey').value = '';
+    setStatus('Key saved for this browser session.', 'ok');
+    await refreshKeyState();
+  } catch (e) {
+    setStatus(e.message, 'error');
+  } finally {
+    $('saveBtn').disabled = false;
+    $('saveLabel').textContent = 'Save key';
+  }
+}
+
+async function clearKey() {
+  try {
+    const r = await fetch('/api/key', { method: 'DELETE' });
+    if (!r.ok) throw new Error('Could not clear the key.');
+    setStatus('Key cleared.', 'ok');
+    await refreshKeyState();
+  } catch (e) {
+    setStatus(e.message, 'error');
+  }
+}
+
+$('keyForm').addEventListener('submit', e => { e.preventDefault(); saveKey(); });
+$('clearBtn').addEventListener('click', clearKey);
+refreshKeyState();
+</script>
+</div>
+</div>
+</body>
+</html>
