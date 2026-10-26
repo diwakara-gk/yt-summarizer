@@ -33,24 +33,30 @@
       <input id="apiKey" name="apiKey" type="password" autocomplete="current-password" placeholder="Paste your Gemini API key">
 
       <div class="result-actions" style="margin-top:.9rem">
-        <button id="saveBtn" type="submit"><span class="spinner" aria-hidden="true"></span><span id="saveLabel">Save key</span></button>
+        <button id="saveBtn" type="submit">Save key</button>
         <button id="clearBtn" type="button" class="ghost-btn">Clear key</button>
       </div>
       <div id="status" role="status" aria-live="polite"></div>
     </form>
     <p class="security-note">
-      Your key is stored in an <strong>HttpOnly, Secure cookie for 16 hours</strong>.
-      It's sent straight to this app's server over HTTPS and nowhere else.
-      Page JavaScript can't read it, localStorage never sees it, and because
-      browser extensions can only access cookies through <code>document.cookie</code>
-      (which HttpOnly blocks), they can't read it either. After 16 hours, or
-      if you hit "Clear key," it's gone and you'll need to save it again.
+      Your key is stored in this browser's <strong>localStorage for 16 hours</strong>.
+      This is a fully static site with no backend, so there's no server left
+      to hide the key behind an HttpOnly cookie anymore -- it's sent straight
+      from this page directly to Google's Gemini API, and page JavaScript
+      (including any browser extensions) can read it. That's the normal
+      trade-off for "paste your own key, no backend" tools. For extra
+      protection, restrict your key by HTTP referrer in
+      <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Google Cloud Console</a>
+      so it only works from this site's domain. After 16 hours, or if you hit
+      "Clear key," it's gone and you'll need to save it again.
     </p>
   </section>
 </main>
-<footer>Keys never leave this server &mdash; not even to page JavaScript.</footer>
+<footer>Fully static site &mdash; your key lives in this browser and goes straight to Google.</footer>
 <script src="nav.js"></script>
 <script src="common.js"></script>
+<script src="prompts.js"></script>
+<script src="gemini.js"></script>
 <script>
 function renderBanner(hasKey) {
   const b = $('keyBanner');
@@ -62,16 +68,6 @@ function renderBanner(hasKey) {
     b.classList.add('warn');
     b.textContent = 'No key saved yet. Paste one below to get started.';
   }
-}
-
-// The real key cookie is HttpOnly (unreadable by JS on purpose). This reads
-// the companion non-secret expiry cookie that /api/key sets alongside it,
-// so we can show a countdown without ever touching the key itself.
-function readExpiryCookie() {
-  const match = document.cookie.match(/(?:^|;\s*)gemini_key_expires=([^;]+)/);
-  if (!match) return null;
-  const epochSeconds = parseInt(decodeURIComponent(match[1]), 10);
-  return Number.isFinite(epochSeconds) ? epochSeconds * 1000 : null;
 }
 
 function formatRemaining(ms) {
@@ -86,7 +82,7 @@ function formatRemaining(ms) {
 let countdownTimer = null;
 function updateCountdown() {
   const el = $('keyExpiry');
-  const expiresAtMs = readExpiryCookie();
+  const expiresAtMs = getApiKeyExpiry();
   if (expiresAtMs === null) {
     el.classList.add('hidden');
     if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
@@ -97,48 +93,29 @@ function updateCountdown() {
   if (!countdownTimer) countdownTimer = setInterval(updateCountdown, 30000);
 }
 
-async function refreshKeyState() {
-  const hasKey = await fetchHasApiKey();
-  renderBanner(hasKey === true);
+function refreshKeyState() {
+  renderBanner(hasApiKey());
   updateCountdown();
 }
 
-async function saveKey() {
+function saveKey() {
   const token = $('apiKey').value.trim();
   if (!token) return setStatus('Please enter a key first.', 'error');
 
-  $('saveBtn').disabled = true;
-  $('saveLabel').textContent = 'Saving...';
-  setStatus('');
-
   try {
-    const r = await fetch('/api/key', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token })
-    });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error || 'Could not save the key.');
+    saveApiKey(token);
     $('apiKey').value = '';
-    setStatus('Key saved for this browser session.', 'ok');
-    await refreshKeyState();
+    setStatus('Key saved in this browser.', 'ok');
+    refreshKeyState();
   } catch (e) {
     setStatus(e.message, 'error');
-  } finally {
-    $('saveBtn').disabled = false;
-    $('saveLabel').textContent = 'Save key';
   }
 }
 
-async function clearKey() {
-  try {
-    const r = await fetch('/api/key', { method: 'DELETE' });
-    if (!r.ok) throw new Error('Could not clear the key.');
-    setStatus('Key cleared.', 'ok');
-    await refreshKeyState();
-  } catch (e) {
-    setStatus(e.message, 'error');
-  }
+function clearKey() {
+  clearApiKey();
+  setStatus('Key cleared.', 'ok');
+  refreshKeyState();
 }
 
 $('keyForm').addEventListener('submit', e => { e.preventDefault(); saveKey(); });

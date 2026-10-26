@@ -30,7 +30,10 @@
       <label for="ptext">Transcript</label>
       <textarea id="ptext" name="transcript" autocomplete="off" rows="4" placeholder="Paste the transcript here"></textarea>
 
-      <button id="go" type="submit"><span class="spinner" aria-hidden="true"></span><span id="goLabel">Summarize</span></button>
+      <div class="result-actions" style="margin-top:.9rem">
+        <button id="goDetailed" type="submit"><span class="spinner" aria-hidden="true"></span><span>Detailed Summary</span></button>
+        <button id="goShort" type="button"><span class="spinner" aria-hidden="true"></span><span>Short Summary</span></button>
+      </div>
       <div id="status" role="status" aria-live="polite"></div>
     </form>
   </section>
@@ -59,13 +62,14 @@
     <textarea id="raw" rows="22" readonly class="hidden"></textarea>
   </section>
 </main>
-<footer>Your transcript stays in your browser.</footer>
+<footer>Fully static site &mdash; your transcript and key stay in this browser, sent only to Google.</footer>
 <script src="nav.js"></script>
 <script src="common.js"></script>
+<script src="prompts.js"></script>
+<script src="gemini.js"></script>
 <script>
-async function checkKeyState() {
-  const hasKey = await fetchHasApiKey();
-  if (hasKey === null) return; // couldn't check -- summarize will surface a clear error if there's no key
+function checkKeyState() {
+  const hasKey = hasApiKey();
   const b = $('keyBanner');
   b.classList.remove('hidden', 'ok', 'warn');
   if (hasKey) {
@@ -77,34 +81,28 @@ async function checkKeyState() {
   }
 }
 
-async function run() {
+async function run(mode) {
   const transcript = $('ptext').value.trim();
   if (!transcript) return setStatus('Please paste a transcript.', 'error');
 
-  $('go').disabled = true;
-  $('goLabel').textContent = 'Summarizing...';
+  const token = getApiKey();
+  if (!token) return setStatus('No API key saved. Set one on the Manage Key page first.', 'error');
+
+  const buttons = [$('goDetailed'), $('goShort')];
+  buttons.forEach(b => b.disabled = true);
   $('result').classList.add('hidden');
-  setStatus('Summarizing...');
+  setStatus(mode === 'short' ? 'Writing short summary...' : 'Summarizing...');
 
   try {
-    const r = await fetch('/api/summarize', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({transcript})
-    });
-    const text = await r.text();
-    let d;
-    try { d = JSON.parse(text); } catch { throw new Error(r.status === 504 ? 'The request timed out. Try again or use a shorter transcript.' : `Server error (${r.status})`); }
-    if (!r.ok) throw new Error(d.error || r.statusText);
-    renderSummary(d.summary);
+    const summary = await summarizeTranscript(transcript, token, mode, msg => setStatus(msg));
+    renderSummary(summary);
     $('result').classList.remove('hidden');
     $('result').classList.add('show');
     setStatus('');
   } catch (e) {
     setStatus(e.message, 'error');
   } finally {
-    $('go').disabled = false;
-    $('goLabel').textContent = 'Summarize';
+    buttons.forEach(b => b.disabled = false);
   }
 }
 
@@ -136,13 +134,13 @@ $('copyBtn').addEventListener('click', async () => {
 });
 
 // Reader preferences stay in this browser and are never sent to the API.
-// Defaults to wide reading mode; only narrows if the user explicitly chose
-// narrow before (an unset/missing preference must NOT override the default).
+// Width always starts wide on every page load -- it's a one-off reading
+// toggle for the current session, not a saved preference. Font size is the
+// only thing persisted across visits.
 const readerPrefs = { fontSize: 18, wide: true };
 try {
   const saved = JSON.parse(localStorage.getItem('transcriptReaderPrefs') || '{}');
   if (Number.isFinite(saved.fontSize)) readerPrefs.fontSize = Math.min(24, Math.max(15, saved.fontSize));
-  if (typeof saved.wide === 'boolean') readerPrefs.wide = saved.wide;
 } catch (_) {}
 function applyReaderPrefs() {
   document.documentElement.style.setProperty('--reading-size', `${readerPrefs.fontSize}px`);
@@ -150,7 +148,7 @@ function applyReaderPrefs() {
   $('fontReadout').textContent = `${readerPrefs.fontSize} px`;
   $('widthToggle').setAttribute('aria-pressed', String(readerPrefs.wide));
   $('widthToggle').textContent = readerPrefs.wide ? 'Narrow reading' : 'Wide reading';
-  try { localStorage.setItem('transcriptReaderPrefs', JSON.stringify(readerPrefs)); } catch (_) {}
+  try { localStorage.setItem('transcriptReaderPrefs', JSON.stringify({ fontSize: readerPrefs.fontSize })); } catch (_) {}
 }
 $('fontDown').addEventListener('click', () => { readerPrefs.fontSize = Math.max(15, readerPrefs.fontSize - 1); applyReaderPrefs(); });
 $('fontUp').addEventListener('click', () => { readerPrefs.fontSize = Math.min(24, readerPrefs.fontSize + 1); applyReaderPrefs(); });
@@ -163,7 +161,8 @@ $('focusToggle').addEventListener('click', () => {
 });
 applyReaderPrefs();
 
-$('appForm').addEventListener('submit', e => { e.preventDefault(); run(); });
+$('appForm').addEventListener('submit', e => { e.preventDefault(); run('detailed'); });
+$('goShort').addEventListener('click', () => run('short'));
 checkKeyState();
 </script>
 </div>

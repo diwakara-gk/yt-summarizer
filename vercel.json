@@ -1,3 +1,0 @@
-{
-  "functions": { "api/summarize.py": { "maxDuration": 300 } }
-}
