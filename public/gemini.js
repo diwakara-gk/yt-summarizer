@@ -73,6 +73,7 @@ class TimeoutErrorLLM extends Error {}
 const SUMMARY_MODES = {
   detailed: { template: () => NOTES_PROMPT, label: 'YouTube Transcript:' },
   short: { template: () => SHORT_SUMMARY_PROMPT, label: 'TRANSCRIPT:' },
+  notes: { template: () => NOTES_SUMMARY_PROMPT, label: 'TRANSCRIPT:' },
 };
 
 async function sleepBounded(ms, deadlineMs) {

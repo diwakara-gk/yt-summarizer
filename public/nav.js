@@ -6,7 +6,7 @@
 (function () {
   const PAGES = [
     { href: 'youtube-summarizer.html', icon: '\u25B6\uFE0F', label: 'YouTube Summarizer' },
-    { href: 'notes-summarizer.html', icon: '\uD83D\uDCDD', label: 'Notes Summarizer', disabled: true },
+    { href: 'notes-summarizer.html', icon: '\uD83D\uDCDD', label: 'Notes Summarizer' },
     { href: 'settings.html', icon: '\uD83D\uDD11', label: 'Manage API Key' },
   ];
 

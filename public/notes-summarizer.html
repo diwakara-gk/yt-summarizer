@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>&#9889; Notes Summarizer</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='80'%3E%F0%9F%93%9D%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+<!-- marked v12.0.2 and DOMPurify 3.4.17, vendored locally instead of CDN.
+     To update: re-download from the CDN and overwrite the files below.
+     Original sources:
+     https://cdn.jsdelivr.net/npm/marked@12/marked.min.js
+     https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js -->
+<script src="vendor/marked.min.js"></script>
+<script src="vendor/purify.min.js"></script>
+<style>
+.tip{position:relative}
+.tip::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);white-space:nowrap;background:#000;color:#fff;font:600 .8rem/1.2 system-ui,sans-serif;font-style:normal;padding:.45rem .65rem;border-radius:8px;border:1px solid var(--border);box-shadow:var(--shadow);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .12s;z-index:20}
+.tip:hover::after,.tip:focus::after{opacity:1;visibility:visible}
+</style>
+</head>
+<body>
+<div class="app-shell">
+<aside id="navMount" class="sidebar" aria-label="Primary navigation"></aside>
+<div class="content-area">
+<header>
+  <div class="badge" aria-hidden="true">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2L14.5 8.5L21 11L14.5 13.5L12 20L9.5 13.5L3 11L9.5 8.5L12 2Z" fill="#0f1117"/>
+    </svg>
+  </div>
+  <h1>&#9889; Notes Summarizer &#9889;</h1>
+  <p>Paste a transcript &mdash; get comprehensive study notes with a fact-check.</p>
+  <p class="model-tag">Uses Gemini 3.5 Flash Lite</p>
+</header>
+<main>
+  <section id="inputCard" class="card">
+    <div id="keyBanner" class="key-banner hidden" role="status"></div>
+    <form id="appForm" autocomplete="on">
+      <label for="ptext">Transcript</label>
+      <div class="file-row" style="display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem">
+        <input id="fileInput" type="file" accept=".txt,.md,.srt,.vtt,.text,text/*" class="hidden">
+        <button id="loadFileBtn" type="button" class="ghost-btn" style="margin:0;flex:none">Load file</button>
+        <span id="fileInfo" tabindex="0" role="img" aria-label="Supported formats: .txt, .md, .srt, .vtt, .text. Max 5 MB." data-tip="Supported formats: .txt, .md, .srt, .vtt, .text (max 5 MB)" class="tip" style="flex:none;cursor:default;display:inline-flex;align-items:center;justify-content:center;width:1.4rem;height:1.4rem;border:1px solid var(--muted);border-radius:50%;font-size:.8rem;font-weight:700;font-style:italic;font-family:Georgia,serif;line-height:1;color:var(--muted)">i</span>
+      </div>
+      <textarea id="ptext" name="transcript" autocomplete="off" rows="4" placeholder="Paste the transcript here"></textarea>
+
+      <div class="result-actions" style="margin-top:.9rem">
+        <button id="goNotes" type="submit"><span class="spinner" aria-hidden="true"></span><span>Generate Notes</span></button>
+      </div>
+      <div id="status" role="status" aria-live="polite"></div>
+    </form>
+  </section>
+
+  <section id="result" class="card hidden">
+    <div class="result-head">
+     <label for="summary">Your notes</label>
+     <div class="result-actions">
+       <button id="copyBtn" type="button" class="ghost-btn">Copy Markdown</button>
+       <button id="downloadBtn" type="button" class="ghost-btn">Download Markdown</button>
+       <button id="toggleRaw" type="button" class="ghost-btn">View Raw</button>
+     </div>
+   </div>
+   <div class="reading-toolbar" aria-label="Reading controls">
+     <div class="reading-controls">
+       <span class="reading-toolbar-label">Text size</span>
+       <button id="fontDown" type="button" class="control-btn" aria-label="Decrease text size">A-</button>
+       <span id="fontReadout" class="size-readout" aria-live="polite">18 px</span>
+       <button id="fontUp" type="button" class="control-btn" aria-label="Increase text size">A+</button>
+     </div>
+     <div class="reading-controls">
+       <button id="widthToggle" type="button" class="control-btn" aria-pressed="false">Wide reading</button>
+       <button id="focusToggle" type="button" class="control-btn" aria-pressed="false">Enter focus mode</button>
+     </div>
+   </div>
+   <div id="summary"></div>
+    <textarea id="raw" rows="22" readonly class="hidden"></textarea>
+  </section>
+</main>
+<footer>Fully static site &mdash; your transcript and key stay in this browser, sent only to Google.</footer>
+<script src="nav.js"></script>
+<script src="common.js"></script>
+<script src="prompts.js"></script>
+<script src="gemini.js"></script>
+<script>
+function checkKeyState() {
+  const hasKey = hasApiKey();
+  const b = $('keyBanner');
+  b.classList.remove('hidden', 'ok', 'warn');
+  if (hasKey) {
+    b.classList.add('ok');
+    b.innerHTML = 'API key saved. <a href="settings.html">Change key</a>';
+  } else {
+    b.classList.add('warn');
+    b.innerHTML = 'No API key saved yet. <a href="settings.html">Set one up</a> before summarizing.';
+  }
+}
+
+async function run() {
+  const transcript = $('ptext').value.trim();
+  if (!transcript) return setStatus('Please paste a transcript.', 'error');
+
+  const token = getApiKey();
+  if (!token) return setStatus('No API key saved. Set one on the Manage Key page first.', 'error');
+
+  const buttons = [$('goNotes')];
+  buttons.forEach(b => b.disabled = true);
+  $('result').classList.add('hidden');
+  setStatus('Writing notes...');
+
+  try {
+    const summary = await summarizeTranscript(transcript, token, 'notes', msg => setStatus(msg));
+    renderSummary(summary);
+    $('result').classList.remove('hidden');
+    $('result').classList.add('show');
+    setStatus('');
+  } catch (e) {
+    setStatus(e.message, 'error');
+  } finally {
+    buttons.forEach(b => b.disabled = false);
+  }
+}
+
+function renderSummary(markdown) {
+  $('raw').value = markdown;
+  const html = marked.parse(markdown, { headerIds: false, mangle: false });
+  $('summary').innerHTML = DOMPurify.sanitize(html);
+  $('summary').classList.remove('hidden');
+  $('raw').classList.add('hidden');
+  $('toggleRaw').textContent = 'View Raw';
+}
+
+$('toggleRaw').addEventListener('click', () => {
+  const switchingToRaw = $('raw').classList.contains('hidden');
+  $('raw').classList.toggle('hidden', !switchingToRaw);
+  $('summary').classList.toggle('hidden', switchingToRaw);
+  $('toggleRaw').textContent = switchingToRaw ? 'View Rendered' : 'View Raw';
+});
+
+$('copyBtn').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText($('raw').value);
+    const old = $('copyBtn').textContent;
+    $('copyBtn').textContent = 'Copied!';
+    setTimeout(() => { $('copyBtn').textContent = old; }, 1500);
+  } catch {
+    setStatus('Could not copy to clipboard.', 'error');
+  }
+});
+
+function notesFilename() {
+  const m = $('raw').value.match(/^#\s+(.+)$/m);
+  const base = (m ? m[1] : 'notes')
+    .replace(/[\\/:*?"<>|\x00-\x1f]/g, '')
+    .replace(/[#*_`]/g, '')
+    .trim().replace(/\s+/g, '-').slice(0, 80);
+  return (base || 'notes') + '.md';
+}
+
+$('downloadBtn').addEventListener('click', () => {
+  const url = URL.createObjectURL(new Blob([$('raw').value], { type: 'text/markdown;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = notesFilename();
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+
+const ALLOWED_EXTS = ['txt', 'md', 'srt', 'vtt', 'text'];
+$('loadFileBtn').addEventListener('click', () => $('fileInput').click());
+$('fileInput').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (!file.name.includes('.') || !ALLOWED_EXTS.includes(ext)) {
+    return setStatus(`Unsupported file type. Use: ${ALLOWED_EXTS.map(x => '.' + x).join(', ')}`, 'error');
+  }
+  if (file.size > 5 * 1024 * 1024) return setStatus('File too large (max 5 MB).', 'error');
+  try {
+    const text = await file.text();
+    if (text.includes('\u0000')) return setStatus('File looks binary, not plain text.', 'error');
+    if (!text.trim()) return setStatus('File is empty.', 'error');
+    $('ptext').value = text;
+    setStatus(`Loaded ${file.name}`);
+  } catch {
+    setStatus('Could not read file.', 'error');
+  }
+});
+
+// Reader preferences stay in this browser and are never sent to the API.
+// Width always starts wide on every page load -- it's a one-off reading
+// toggle for the current session, not a saved preference. Font size is the
+// only thing persisted across visits.
+const readerPrefs = { fontSize: 18, wide: true };
+try {
+  const saved = JSON.parse(localStorage.getItem('transcriptReaderPrefs') || '{}');
+  if (Number.isFinite(saved.fontSize)) readerPrefs.fontSize = Math.min(24, Math.max(15, saved.fontSize));
+} catch (_) {}
+function applyReaderPrefs() {
+  document.documentElement.style.setProperty('--reading-size', `${readerPrefs.fontSize}px`);
+  document.documentElement.style.setProperty('--reading-width', readerPrefs.wide ? '100%' : '760px');
+  $('fontReadout').textContent = `${readerPrefs.fontSize} px`;
+  $('widthToggle').setAttribute('aria-pressed', String(readerPrefs.wide));
+  $('widthToggle').textContent = readerPrefs.wide ? 'Narrow reading' : 'Wide reading';
+  try { localStorage.setItem('transcriptReaderPrefs', JSON.stringify({ fontSize: readerPrefs.fontSize })); } catch (_) {}
+}
+$('fontDown').addEventListener('click', () => { readerPrefs.fontSize = Math.max(15, readerPrefs.fontSize - 1); applyReaderPrefs(); });
+$('fontUp').addEventListener('click', () => { readerPrefs.fontSize = Math.min(24, readerPrefs.fontSize + 1); applyReaderPrefs(); });
+$('widthToggle').addEventListener('click', () => { readerPrefs.wide = !readerPrefs.wide; applyReaderPrefs(); });
+$('focusToggle').addEventListener('click', () => {
+  const active = document.body.classList.toggle('focus-mode');
+  $('focusToggle').setAttribute('aria-pressed', String(active));
+  $('focusToggle').textContent = active ? 'Exit focus mode' : 'Enter focus mode';
+  if (active) $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+applyReaderPrefs();
+
+$('appForm').addEventListener('submit', e => { e.preventDefault(); run(); });
+checkKeyState();
+</script>
+</div>
+</div>
+</body>
+</html>

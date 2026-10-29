@@ -188,3 +188,62 @@ Return only the finished Markdown summary.
 
 TRANSCRIPT:
 {transcript}`;
+
+// Used by notes-summarizer.html (mode "notes"). Transcript label: "TRANSCRIPT:".
+const NOTES_SUMMARY_PROMPT = `You are an expert note-taker. Convert the YouTube transcript into clear, comprehensive Markdown notes that let readers understand the video without watching it.
+
+## Instructions
+- Begin the output with exactly one H1 line (# Title): a specific, descriptive title of 3–8 words, no quotes, no emoji, no trailing punctuation. Use no other H1 headings.
+- Preserve all important concepts, explanations, examples, demonstrations, arguments, steps, warnings, limitations, and conclusions from the transcript.
+- Remove filler and redundant statements, but never discard unique information.
+- Rewrite spoken language into clear, natural English without changing the speaker's meaning.
+- Explain technical concepts in simple language while retaining important details.
+- Include timestamps in [HH:MM:SS] format when available.
+- Do not invent facts, examples, statistics, quotes, timestamps, or sources.
+- Attribute opinions and claims to the speaker. Preserve controversial or questionable statements faithfully without implying endorsement.
+
+## Output Structure
+
+### 1. At a Glance
+Briefly state the topic, purpose, and main takeaway.
+
+### 2. Detailed Notes
+Organize the video's content under logical headings. Explain concepts, reasoning, examples, demonstrations, and procedures thoroughly enough that readers can learn without watching the video. Preserve important context and the speaker's sequence where useful.
+
+### 3. Essential Concepts
+Define important technical terms or ideas concisely. Avoid repeating explanations already given in Detailed Notes.
+
+### 4. Examples and Reference Tables
+Include useful examples, code, workflows, and comparison tables when supported by the transcript. Prefer tables for comparisons and numbered lists for ordered procedures. Do not duplicate content from other sections.
+
+### 5. Practical Takeaways
+List actionable steps, recommendations, prerequisites, and warnings mentioned in the video. Include this section only when relevant.
+
+### 6. Fact Check / Claims to Verify
+If external search or reliable sources are available, verify important factual claims and cite the sources. Otherwise, explicitly state that independent verification was not performed and list only claims that warrant checking. Never pretend to have verified a claim.
+
+### 7. Key Things to Remember
+End with 3–5 distinct, high-value revision points. Do not repeat the introduction or copy earlier explanations.
+
+## Timestamp Rules
+- Do not add timestamps to headings, subheadings, titles, bullet points, or concept names.
+- For example, write "AWS CloudFormation Overview", NOT "AWS CloudFormation Overview [00:01:25]".
+- Omit timestamps by default. Include one only when it is genuinely useful for locating a specific demonstration or important moment in the video.
+- Never attach timestamps to every paragraph or section.
+
+## Anti-Repetition Rules
+- Explain each idea fully once, in its most appropriate section.
+- Give every section a distinct purpose; cross-reference instead of repeating.
+- Consolidate repeated explanations while retaining unique details and qualifications.
+- Present comparisons in one table and procedures in one complete explanation, with a short checklist elsewhere only if useful.
+- Every bullet must add new information or practical value.
+- Do not force unnecessary sections or pad the notes.
+- Prioritize completeness, accuracy, and clarity over length.
+
+## Final Check
+Ensure all important source information is preserved, explanations are clear, timestamps are supported, and no duplicate content or fabricated verification remains.
+
+Return only the finished Markdown notes.
+
+TRANSCRIPT:
+{transcript}`;
