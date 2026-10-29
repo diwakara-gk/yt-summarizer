@@ -51,9 +51,23 @@
 
     mount.innerHTML =
       '<a class="brand" href="index.html" title="Go to Summarizer Hub"><span aria-hidden="true">\u26A1</span><span class="nav-label">Summarizer Hub</span></a>' +
-      linksHtml +
+      '<button type="button" id="menuBtn" class="menu-btn" aria-expanded="false" aria-controls="navLinks" aria-label="Open menu">\u2630</button>' +
+      '<div class="nav-links" id="navLinks">' + linksHtml + '</div>' +
       '<button type="button" id="navToggle" class="nav-toggle">' +
       '<span class="nav-icon" aria-hidden="true">\u00AB</span><span class="nav-label">Collapse</span></button>';
+
+    const menuBtn = document.getElementById('menuBtn');
+    function setMenu(open) {
+      mount.classList.toggle('menu-open', open);
+      menuBtn.setAttribute('aria-expanded', String(open));
+      menuBtn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+      menuBtn.textContent = open ? '\u2715' : '\u2630';
+    }
+    menuBtn.addEventListener('click', e => { e.stopPropagation(); setMenu(!mount.classList.contains('menu-open')); });
+    mount.addEventListener('click', e => { if (e.target.closest('a.nav-link')) setMenu(false); });
+    document.addEventListener('click', e => { if (!mount.contains(e.target)) setMenu(false); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') setMenu(false); });
+    window.matchMedia('(min-width: 821px)').addEventListener('change', e => { if (e.matches) setMenu(false); });
 
     const toggleBtn = document.getElementById('navToggle');
     applyCollapsed(shell, toggleBtn, isCollapsed());
