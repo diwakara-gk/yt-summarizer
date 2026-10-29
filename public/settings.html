@@ -105,7 +105,7 @@ function saveKey() {
   try {
     saveApiKey(token);
     $('apiKey').value = '';
-    setStatus('Key saved in this browser.', 'ok');
+    setStatus('');
     refreshKeyState();
   } catch (e) {
     setStatus(e.message, 'error');
@@ -114,7 +114,7 @@ function saveKey() {
 
 function clearKey() {
   clearApiKey();
-  setStatus('Key cleared.', 'ok');
+  setStatus('');
   refreshKeyState();
 }
 
