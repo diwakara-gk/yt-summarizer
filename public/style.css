@@ -147,3 +147,16 @@ header{padding-top:1.4rem!important}
 header{padding-bottom:1.1rem!important}
 main{padding-top:.75rem}
 }
+
+/* Mobile: roomier top bar / hamburger tap target, equal-size action buttons */
+@media(max-width:820px){
+.app-shell .sidebar,.app-shell.sidebar-collapsed .sidebar{padding:.5rem .75rem}
+.app-shell .sidebar .brand{min-height:48px;font-size:1.05rem}
+.menu-btn{min-height:48px;min-width:48px;font-size:1.4rem}
+.app-shell .sidebar .nav-link,.app-shell.sidebar-collapsed .sidebar .nav-link{min-height:52px;font-size:1rem}
+}
+@media(max-width:640px){
+.result-actions{align-items:stretch}
+.result-actions button,.result-actions .ghost-btn{flex:1 1 0;min-width:0;min-height:48px;margin-top:.9rem;padding:.7rem .5rem;font-size:.95rem;text-align:center}
+.result-head .result-actions button{margin-top:0}
+}
