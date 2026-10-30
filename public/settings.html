@@ -17,8 +17,8 @@
       <path d="M12 2L14.5 8.5L21 11L14.5 13.5L12 20L9.5 13.5L3 11L9.5 8.5L12 2Z" fill="#0f1117"/>
     </svg>
   </div>
-  <h1>&#128273; Manage your Gemini API key</h1>
-  <p>Saved once, used automatically every time you summarize.</p>
+  <h1>&#128273; Bring Your Own Key (BYOK)</h1>
+  <p>Use your own free Gemini API key &mdash; saved once in this browser, used automatically every time you summarize.</p>
 </header>
 <main>
   <section id="keyCard" class="card">
@@ -42,7 +42,7 @@
       Get a free API key from
       <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>
       and paste it above. Your key is saved only in this browser and
-      is cleared automatically after 16 hours.
+      is cleared automatically after 1 week.
     </p>
   </section>
 </main>
@@ -67,8 +67,10 @@ function renderBanner(hasKey) {
 function formatRemaining(ms) {
   if (ms <= 0) return 'Expired \u2014 save your key again.';
   const totalMinutes = Math.ceil(ms / 60000);
-  const hours = Math.floor(totalMinutes / 60);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
   const minutes = totalMinutes % 60;
+  if (days > 0) return `Expires in ${days}d ${hours}h`;
   if (hours <= 0) return `Expires in ${minutes}m`;
   return `Expires in ${hours}h ${minutes}m`;
 }

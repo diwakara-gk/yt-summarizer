@@ -89,10 +89,10 @@ function checkKeyState() {
   b.classList.remove('hidden', 'ok', 'warn');
   if (hasKey) {
     b.classList.add('ok');
-    b.innerHTML = 'API key saved. <a href="settings.html">Change key</a>';
+    b.innerHTML = '<strong>BYOK</strong> (Bring Your Own Key): using your saved API key; usage counts against it. <a href="settings.html">Change key</a>';
   } else {
     b.classList.add('warn');
-    b.innerHTML = 'No API key saved yet. <a href="settings.html">Set one up</a> before summarizing.';
+    b.innerHTML = '<strong>BYOK</strong> (Bring Your Own Key): this site runs on your own Gemini API key. No key saved yet &mdash; <a href="settings.html">set one up</a> before summarizing.';
   }
 }
 

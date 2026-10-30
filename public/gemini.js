@@ -14,7 +14,7 @@
 
 const API_KEY_STORAGE_KEY = 'geminiApiKey';
 const API_KEY_EXPIRY_STORAGE_KEY = 'geminiApiKeyExpiry';
-const KEY_TTL_MS = 16 * 60 * 60 * 1000; // matches the old cookie's 16h TTL
+const KEY_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
 const MAX_KEY_LEN = 512;
 
 function saveApiKey(rawToken) {
