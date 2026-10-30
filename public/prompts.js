@@ -7,118 +7,45 @@
 // Both templates use a literal "{transcript}" placeholder that gemini.js
 // fills in with String.replace() -- keep exactly one occurrence per template.
 
-const NOTES_PROMPT = `You are an exceptional teacher and expert learning-note writer.
+const NOTES_PROMPT = `Turn this YouTube transcript into clear, concise, detailed Markdown notes that teach the content well enough to understand without watching the video.
 
-Your job is to turn the YouTube transcript below into clear, engaging,
-high-value study notes that help the reader UNDERSTAND the video,
-not merely reread what the speaker said.
+RULES:
+- Write in simple, precise English; translate non-English content into English.
+- Preserve important ideas, reasoning, examples, steps, facts, numbers, caveats, and limitations.
+- Explain how and why concepts work when the transcript supports it.
+- Remove filler and repetition, but never discard unique, useful information.
+- Follow the video's logical flow; reorganize only for clarity.
+- Do not invent details or silently replace the speaker's claims with outside knowledge.
+- Use readable paragraphs, meaningful headings, concise bullets, and tables only when useful.
+- Explain each idea fully once. Do not repeat it in definitions, tables, takeaways, or other sections.
+- Omit sections that add no value. Keep notes as short as possible without losing essential understanding.
 
-CORE PRINCIPLE:
-Explain every important idea well, in the right place, exactly once.
-Prefer clarity and understanding over completeness and length.
+## 📋 At a Glance
+Summarize the topic, main message, and learning outcome in 2–3 sentences.
 
-WRITING RULES:
-- Write in natural, simple, precise English. Translate other languages into English.
-- Explain concepts as a great teacher would: what it means, how it works,
-  why it matters, and how it connects to other ideas.
-- Follow the video's logical flow, reorganizing only when it improves understanding.
-- Remove filler, repetition, unnecessary storytelling, and redundant explanations.
-- Never repeat an explanation across sections.
-- Do not turn every sentence into a bullet. Group related ideas together.
-- Use short paragraphs and concise bullets with enough explanation to be useful.
-- Bold only genuinely important terms, conclusions, and numbers.
-- Use emojis sparingly and only when they improve navigation.
-- Use tables ONLY when they make comparisons, categories, processes,
-  numbers, or alternatives easier to understand.
-- Do not force information into tables when bullets or prose are clearer.
-- Do not add generic advice, unrelated background knowledge, or invented details.
-- Preserve important qualifications, limitations, disagreements, and nuances.
-- If the transcript does not provide enough information, say so rather than guess.
-- Aim for the shortest notes that preserve the video's essential understanding.
-  Video length alone is not a reason to make notes excessively long.
+## 🧠 The Explanation
+Explain the main ideas under logical subheadings. Include essential reasoning, examples, procedures, and qualifications. This should be the main section.
 
-OUTPUT FORMAT:
+## 🔑 Essential Concepts
+Define important unfamiliar terms briefly. Do not repeat explanations above. Omit if unnecessary.
 
-## \u{1F4CB} At a Glance
-In 2\u20134 sentences, explain what the video is about, its central message,
-and what the reader will understand after reading the notes.
-Do not preview every individual point.
+## 📊 Comparisons & Reference Tables
+Include tables only for useful comparisons, categories, stages, or numerical reference data. Do not duplicate the main explanation. Omit if unnecessary.
 
-## \u{1F9E0} The Explanation
-This is the MAIN section and should contain most of the useful content.
+## 🎯 Practical Application
+Include source-supported steps or recommendations when relevant. Use numbered steps for procedures. Do not invent advice or repeat procedures already explained.
 
-Organize the explanation into meaningful ### subheadings with a relevant emoji.
-Follow the video's natural progression or a clearer teaching sequence.
+## ⏱️ Important Timestamps
+Include only a few key moments with timestamps explicitly present in the transcript. Format as [mm:ss] — Topic or [hh:mm:ss] — Topic. Omit if unavailable.
 
-For each major idea:
-- Explain the idea in plain English.
-- Explain how or why it works when the transcript provides that information.
-- Connect cause and effect, reasoning, or related concepts where relevant.
-- Include essential supporting facts, evidence, numbers, and caveats.
-- Use a brief example when it genuinely improves understanding.
+TIMESTAMPS: Never put timestamps in headings, subheadings, paragraphs, bullets, or concept names. Use them only in Important Timestamps.
 
-Explain each idea fully in one place. Do not create separate paragraphs
-that repeat the same point in different words.
+## 🏁 Remember This
+End with 3–5 distinct, high-value facts or principles. Do not repeat earlier content.
 
-Include minor details only when they are necessary to understand a major idea.
-Combine closely related points rather than creating too many subheadings.
+FINAL CHECK: Preserve essential information, remove duplication, keep claims faithful to the transcript, and omit unnecessary sections. Return only the finished Markdown notes.
 
-## \u{1F511} Essential Concepts
-List only the important technical terms, frameworks, or unfamiliar concepts
-needed to understand the video.
-
-Format: **Term** \u2014 short, plain-English definition.
-
-Do not repeat explanations already provided in The Explanation.
-If there are no meaningful technical terms, omit this section.
-
-## \u{1F4CA} Comparisons & Reference Tables
-Include a compact Markdown table ONLY if the transcript contains useful
-comparisons, categories, stages, pros and cons, options, or numerical data
-that are easier to scan in tabular form.
-
-Choose relevant column headings and preserve important distinctions.
-Do not duplicate the detailed explanation in the table.
-If no table would genuinely help, omit this section.
-
-## \u{1F3AF} Practical Application
-Include actionable steps, techniques, or recommendations explicitly supported
-by the video, when applicable.
-
-Make each step concrete and explain its purpose briefly.
-For procedural content, use a numbered sequence.
-For general advice, use a short bullet list.
-Do not manufacture action items for videos that are purely explanatory.
-
-## \u23F1 Important Timestamps
-Include only timestamps that are actually present or reliably identifiable
-in the supplied transcript.
-
-Use [mm:ss] for shorter videos and [hh:mm:ss] for longer videos.
-Add a short label describing the topic at each timestamp.
-Never invent or estimate timestamps. Omit this section if timestamps are unavailable.
-
-## \u{1F3C1} Remember This
-Finish with 3\u20135 short bullets containing the most important conclusions
-the reader should retain after reading the notes.
-
-These bullets must be a compact memory aid, not another summary.
-Do not repeat entire explanations, examples, tables, or lists of takeaways.
-
-FINAL QUALITY CHECK BEFORE RESPONDING:
-1. Is each idea explained in only one main location?
-2. Does each paragraph add new information?
-3. Have redundant takeaways and repeated conclusions been removed?
-4. Can long bullet lists be combined into clearer groups?
-5. Are the tables genuinely useful rather than decorative?
-6. Is the result substantially easier to read than a transcript?
-7. Have all claims remained faithful to the transcript?
-
-If a sentence adds no new understanding, remove it.
-If a section has no useful content, omit it.
-Return only the finished Markdown notes.
-
-YouTube Transcript:
+TRANSCRIPT:
 {transcript}`;
 
 const EXTRACT_PROMPT = `You are extracting useful information from one segment
