@@ -169,3 +169,10 @@ header p.model-tag{display:inline-block!important;max-width:100%;white-space:nor
 .byok-note{margin:0 0 .75rem;font-size:.74rem;line-height:1.45;color:var(--muted)}
 .byok-note strong{color:var(--accent)}
 .byok-note a{color:var(--accent-hover)}
+
+/* Justified summary text; words wrap whole (no mid-word cuts), hyphenate only if needed */
+#summary{overflow-wrap:break-word;word-break:normal}
+#summary p,#summary li,#summary blockquote{text-align:justify;text-justify:inter-word;hyphens:auto;-webkit-hyphens:auto}
+#summary h1,#summary h2,#summary h3,#summary h4,#summary th,#summary td,#summary pre,#summary code{text-align:left;hyphens:none}
+#summary code{overflow-wrap:break-word}
+@media(max-width:640px){#summary p,#summary li,#summary blockquote{text-align:justify;hyphens:auto;-webkit-hyphens:auto;word-spacing:-.02em}}
