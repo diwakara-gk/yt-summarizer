@@ -8,7 +8,7 @@
 // wanting extra protection should restrict their key by HTTP referrer
 // in Google Cloud Console.
 //
-// Prompt wording lives in prompts.js (NOTES_PROMPT / EXTRACT_PROMPT globals)
+// Prompt wording lives in prompts.js (YOUTUBE_SUMMARY_PROMPT / EXTRACT_PROMPT globals)
 // -- load that file before this one. Keeping prompts out of this file means
 // tweaking the LLM's instructions never risks touching the request/retry code.
 
@@ -64,17 +64,25 @@ const MAX_ATTEMPTS = 6;
 class PermissionErrorLLM extends Error {}
 class TimeoutErrorLLM extends Error {}
 
-// NOTES_PROMPT, EXTRACT_PROMPT, and SHORT_SUMMARY_PROMPT are defined in prompts.js
+// All prompt templates and TRANSCRIPT_BLOCK / EXTRACTED_BLOCK live in prompts.js.
 
-// Maps a summary mode to its final write-up prompt and the label line that
-// prompt uses right before the transcript -- needed so the chunked path can
-// swap that label to say "already-extracted points" instead of "transcript"
-// (see summarizeTranscript below). Add a new mode here, nowhere else.
+// Maps a summary mode to a function returning its final write-up prompt.
+// contentType (a NOTES_VARIANTS key) only matters for the two notes modes;
+// unknown types fall back to 'general'. Add a new mode here, nowhere else
+// (plus a button on the page that calls it).
 const SUMMARY_MODES = {
-  detailed: { template: () => NOTES_PROMPT, label: 'YouTube Transcript:' },
-  short: { template: () => SHORT_SUMMARY_PROMPT, label: 'TRANSCRIPT:' },
-  notes: { template: () => NOTES_SUMMARY_PROMPT, label: 'TRANSCRIPT:' },
+  detailed: () => YOUTUBE_SUMMARY_PROMPT,
+  short: () => YOUTUBE_SHORT_SUMMARY_PROMPT,
+  notes: type => NOTES_PROMPTS[type] || NOTES_PROMPTS.general,
+  shortNotes: type => SHORT_NOTES_PROMPTS[type] || SHORT_NOTES_PROMPTS.general,
 };
+
+// Inserts content at the template's {transcript} placeholder. Uses a function
+// replacer on purpose: a plain string replacement would interpret "$&", "$'"
+// etc. inside a transcript and silently mangle it.
+function fillTranscript(template, content) {
+  return template.replace('{transcript}', () => content);
+}
 
 async function sleepBounded(ms, deadlineMs) {
   const remaining = deadlineMs - Date.now();
@@ -128,18 +136,17 @@ async function callLLM(prompt, token, deadlineMs) {
   throw new Error('Exceeded maximum retry attempts');
 }
 
-// mode picks the final write-up prompt: 'detailed' (default) or 'short'.
+// mode picks the final write-up prompt (a SUMMARY_MODES key; 'detailed' is the default).
 // onProgress(message) is optional and used to surface "chunk 2/4" style
 // status text for long transcripts, since multiple round trips now happen
 // straight from the browser instead of behind one server call.
-async function summarizeTranscript(text, token, mode, onProgress) {
-  const { template, label } = SUMMARY_MODES[mode] || SUMMARY_MODES.detailed;
-  const finalPrompt = template();
+async function summarizeTranscript(text, token, mode, onProgress, contentType) {
+  const finalPrompt = (SUMMARY_MODES[mode] || SUMMARY_MODES.detailed)(contentType);
   const deadlineMs = Date.now() + DEADLINE_MS;
 
   if (text.length <= CHUNK_CHARS) {
     onProgress?.('Summarizing...');
-    return callLLM(finalPrompt.replace('{transcript}', text), token, deadlineMs);
+    return callLLM(fillTranscript(finalPrompt, text), token, deadlineMs);
   }
 
   const chunks = [];
@@ -148,12 +155,10 @@ async function summarizeTranscript(text, token, mode, onProgress) {
   const points = [];
   for (let i = 0; i < chunks.length; i++) {
     onProgress?.(`Extracting key points (${i + 1}/${chunks.length})...`);
-    points.push(await callLLM(EXTRACT_PROMPT.replace('{transcript}', chunks[i]), token, deadlineMs));
+    points.push(await callLLM(fillTranscript(EXTRACT_PROMPT, chunks[i]), token, deadlineMs));
   }
 
   onProgress?.('Writing final notes...');
-  const consolidatedPrompt = finalPrompt
-    .replace('{transcript}', points.join('\n'))
-    .replace(label, 'Extracted points from the transcript (English):');
+  const consolidatedPrompt = fillTranscript(finalPrompt.replace(TRANSCRIPT_BLOCK, () => EXTRACTED_BLOCK), points.join('\n'));
   return callLLM(consolidatedPrompt, token, deadlineMs);
 }

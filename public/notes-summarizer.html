@@ -45,8 +45,14 @@
       </div>
       <textarea id="ptext" name="transcript" autocomplete="off" rows="4" placeholder="Paste the transcript here"></textarea>
 
+      <div class="type-row">
+        <label for="notesType">Content type</label>
+        <select id="notesType" name="notesType"></select>
+      </div>
+
       <div class="result-actions" style="margin-top:.9rem">
         <button id="goNotes" type="submit"><span class="spinner" aria-hidden="true"></span><span>Generate Notes</span></button>
+        <button id="goShortNotes" type="button"><span class="spinner" aria-hidden="true"></span><span>Short Notes</span></button>
       </div>
       <div id="status" role="status" aria-live="polite"></div>
     </form>
@@ -96,20 +102,31 @@ function checkKeyState() {
   }
 }
 
-async function run() {
+// Dropdown options come from NOTES_VARIANTS (prompts.js) so labels live in one place.
+$('notesType').innerHTML = Object.entries(NOTES_VARIANTS)
+  .map(([key, v]) => `<option value="${key}">${v.label}</option>`).join('');
+try {
+  const savedType = localStorage.getItem('notesContentType');
+  if (savedType in NOTES_VARIANTS) $('notesType').value = savedType;
+} catch (_) {}
+$('notesType').addEventListener('change', () => {
+  try { localStorage.setItem('notesContentType', $('notesType').value); } catch (_) {}
+});
+
+async function run(mode) {
   const transcript = $('ptext').value.trim();
   if (!transcript) return setStatus('Please paste a transcript.', 'error');
 
   const token = getApiKey();
   if (!token) return setStatus('No API key saved. Set one on the Manage Key page first.', 'error');
 
-  const buttons = [$('goNotes')];
+  const buttons = [$('goNotes'), $('goShortNotes')];
   buttons.forEach(b => b.disabled = true);
   $('result').classList.add('hidden');
-  setStatus('Writing notes...');
+  setStatus(mode === 'shortNotes' ? 'Writing short notes...' : 'Writing notes...');
 
   try {
-    const summary = await summarizeTranscript(transcript, token, 'notes', msg => setStatus(msg));
+    const summary = await summarizeTranscript(transcript, token, mode, msg => setStatus(msg), $('notesType').value);
     renderSummary(summary);
     $('result').classList.remove('hidden');
     $('result').classList.add('show');
@@ -218,7 +235,8 @@ $('focusToggle').addEventListener('click', () => {
 });
 applyReaderPrefs();
 
-$('appForm').addEventListener('submit', e => { e.preventDefault(); run(); });
+$('appForm').addEventListener('submit', e => { e.preventDefault(); run('notes'); });
+$('goShortNotes').addEventListener('click', () => run('shortNotes'));
 checkKeyState();
 </script>
 </div>

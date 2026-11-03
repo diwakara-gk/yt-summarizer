@@ -176,3 +176,6 @@ header p.model-tag{display:inline-block!important;max-width:100%;white-space:nor
 #summary h1,#summary h2,#summary h3,#summary h4,#summary th,#summary td,#summary pre,#summary code{text-align:left;hyphens:none}
 #summary code{overflow-wrap:break-word}
 @media(max-width:640px){#summary p,#summary li,#summary blockquote{text-align:justify;hyphens:auto;-webkit-hyphens:auto;word-spacing:-.02em}}
+.type-row{display:flex;align-items:center;gap:.6rem;margin-top:.9rem;flex-wrap:wrap}.type-row label{margin:0}
+select{padding:.55rem .8rem;font-size:16px;border:1px solid var(--border);border-radius:10px;background:#191a17;color:var(--text);font-family:inherit;cursor:pointer}
+select:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-color:var(--accent)}
