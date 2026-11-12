@@ -179,3 +179,10 @@ header p.model-tag{display:inline-block!important;max-width:100%;white-space:nor
 .type-row{display:flex;align-items:center;gap:.6rem;margin-top:.9rem;flex-wrap:wrap}.type-row label{margin:0}
 select{padding:.55rem .8rem;font-size:16px;border:1px solid var(--border);border-radius:10px;background:#191a17;color:var(--text);font-family:inherit;cursor:pointer}
 select:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-color:var(--accent)}
+
+/* Form action row (Generate / Short / Clear): every button identical in size at all widths (capped at 12rem so they don't stretch on desktop).
+   Beats the compact .ghost-btn look so the secondary Clear button doesn't shrink. */
+#appForm .result-actions{align-items:stretch}
+#appForm .result-actions button{flex:1 1 0;min-width:0;max-width:12rem;min-height:48px;margin-top:.9rem;padding:.72rem 1.1rem;font-size:.95rem;font-weight:650;border-radius:10px;text-align:center}
+/* Clear is a rarely-used secondary action: content-width instead of an equal share of the row. */
+#appForm .result-actions .ghost-btn{flex:0 0 auto;max-width:none;padding:.72rem 1.4rem;font-weight:600}

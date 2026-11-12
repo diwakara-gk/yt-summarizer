@@ -53,6 +53,7 @@
       <div class="result-actions" style="margin-top:.9rem">
         <button id="goNotes" type="submit"><span class="spinner" aria-hidden="true"></span><span>Generate Notes</span></button>
         <button id="goShortNotes" type="button"><span class="spinner" aria-hidden="true"></span><span>Short Notes</span></button>
+        <button id="clearBtn" type="button" class="ghost-btn">Clear</button>
       </div>
       <div id="status" role="status" aria-live="polite"></div>
     </form>
@@ -113,6 +114,10 @@ $('notesType').addEventListener('change', () => {
   try { localStorage.setItem('notesContentType', $('notesType').value); } catch (_) {}
 });
 
+// Bumped by every run and every clear. A request that finishes after the
+// counter moved on was cleared (or superseded) mid-flight, so its result is dropped.
+let runId = 0;
+
 async function run(mode) {
   const transcript = $('ptext').value.trim();
   if (!transcript) return setStatus('Please paste a transcript.', 'error');
@@ -120,6 +125,7 @@ async function run(mode) {
   const token = getApiKey();
   if (!token) return setStatus('No API key saved. Set one on the Manage Key page first.', 'error');
 
+  const myRun = ++runId;
   const buttons = [$('goNotes'), $('goShortNotes')];
   buttons.forEach(b => b.disabled = true);
   $('result').classList.add('hidden');
@@ -127,16 +133,36 @@ async function run(mode) {
 
   try {
     const summary = await summarizeTranscript(transcript, token, mode, msg => setStatus(msg), $('notesType').value);
+    if (myRun !== runId) return;
     renderSummary(summary);
     $('result').classList.remove('hidden');
     $('result').classList.add('show');
     setStatus('');
   } catch (e) {
-    setStatus(e.message, 'error');
+    if (myRun === runId) setStatus(e.message, 'error');
   } finally {
-    buttons.forEach(b => b.disabled = false);
+    if (myRun === runId) buttons.forEach(b => b.disabled = false);
   }
 }
+
+// Wipes the transcript, the generated notes, and any status text, then
+// drops you back at an empty input ready for the next one.
+function clearAll() {
+  runId++;
+  [$('goNotes'), $('goShortNotes')].forEach(b => b.disabled = false);
+  $('ptext').value = '';
+  $('fileInput').value = '';
+  $('raw').value = '';
+  $('summary').innerHTML = '';
+  $('result').classList.add('hidden');
+  $('result').classList.remove('show');
+  document.body.classList.remove('focus-mode');
+  $('focusToggle').setAttribute('aria-pressed', 'false');
+  $('focusToggle').textContent = 'Enter focus mode';
+  setStatus('');
+  $('ptext').focus();
+}
+$('clearBtn').addEventListener('click', clearAll);
 
 function renderSummary(markdown) {
   $('raw').value = markdown;
